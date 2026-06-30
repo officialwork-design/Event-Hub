@@ -124,7 +124,7 @@ function renderCurrentCategory(){
       <span class="block-type">${meta.label}</span>
       <span class="block-status">${escapeHtml(block?.status||"一括管理")}</span>
     </div>
-    <h3>${meta.label}ブロック</h3>
+    <h3>${meta.label}</h3>
     <p>このカテゴリは1行ずつ即保存せず、まとめて編集してから更新します。</p>
     ${list}
     ${total}
@@ -153,7 +153,7 @@ function openBatchEditor(type){
   state.draftRows=parseRowsByType(type).map(row=>({title:row.title||"",amount:row.amount||"",memo:row.memo||""}));
   if(!state.draftRows.length) state.draftRows=[createEmptyRow()];
 
-  setText("modalTitle",`${meta.label}ブロック編集`);
+  setText("modalTitle",`${meta.label}編集`);
   setText("modalDescription",`追加・削除・変更はまだ保存されません。「${meta.label}を更新」を押した時だけ保存されます。`);
   setText("saveCategoryButton",`${meta.label}を更新`);
   setText("deleteCategoryButton",`${meta.label}全体を削除`);
@@ -235,10 +235,10 @@ async function deleteCategory(type){
   const meta=CATEGORY_META[type]||CATEGORY_META.memo;
   const block=getBlockByType(type);
   if(!block?.blockId){
-    alert(`削除できる${meta.label}ブロックがありません。`);
+    alert(`削除できる${meta.label}がありません。`);
     return;
   }
-  if(!confirm(`${meta.label}ブロック全体を削除しますか？`)) return;
+  if(!confirm(`${meta.label}全体を削除しますか？`)) return;
 
   setStatus(`${meta.label}削除中`,"loading");
   try{

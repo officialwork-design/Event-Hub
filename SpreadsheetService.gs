@@ -1,7 +1,7 @@
 const SHEET_NAMES = {
   SETTINGS: "設定",
   DASHBOARD: "ダッシュボード",
-  BLOCKS: "ブロック管理",
+  BLOCKS: "管理",
   HISTORY: "変更履歴",
   ERRORS: "エラーログ"
 };
