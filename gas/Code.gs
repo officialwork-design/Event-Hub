@@ -1,1 +1,34 @@
-function doGet(e){return handleRequest_(e);}function doPost(e){return handleRequest_(e);}function handleRequest_(e){const p=getRequestParams_(e);const a=p.action||'getDashboard';try{if(a==='health')return jsonResponse_(healthCheck_());if(a==='setup')return jsonResponse_(setupEventHub());if(a==='getConfig')return jsonResponse_(getConfig_());if(a==='getDashboard')return jsonResponse_(getDashboard_(p));if(a==='createBlock')return jsonResponse_(createBlock_(p));if(a==='updateBlock')return jsonResponse_(updateBlock_(p));if(a==='deleteBlock')return jsonResponse_(deleteBlock_(p));return jsonResponse_({success:false,message:'Unknown action: '+a});}catch(error){return jsonResponse_({success:false,message:error.message,stack:error.stack});}}
+function doGet(e) {
+  return handleRequest_(e);
+}
+
+function doPost(e) {
+  return handleRequest_(e);
+}
+
+function handleRequest_(e) {
+  const params = getRequestParams_(e);
+  const action = params.action || 'getDashboard';
+
+  try {
+    if (action === 'health') return jsonResponse_(healthCheck_());
+    if (action === 'setup') return jsonResponse_(setupEventHub());
+    if (action === 'getConfig') return jsonResponse_(getConfig_());
+    if (action === 'getDashboard') return jsonResponse_(getDashboard_(params));
+    if (action === 'getBlocks') return jsonResponse_(getBlocks_(params));
+    if (action === 'createBlock') return jsonResponse_(createBlock_(params));
+    if (action === 'updateBlock') return jsonResponse_(updateBlock_(params));
+    if (action === 'deleteBlock') return jsonResponse_(deleteBlock_(params));
+
+    return jsonResponse_({
+      success: false,
+      message: 'Unknown action: ' + action
+    });
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      message: error.message,
+      stack: error.stack
+    });
+  }
+}

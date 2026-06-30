@@ -83,8 +83,8 @@ function seedBlocksIfEmpty_(ss) {
   const now = new Date().toISOString();
   const eventId = getProperty_("EVENT_ID", "OFFMEETING_001");
 
-  sheet.appendRow(["BLOCK_PREP_001", eventId, "preparation", "準備物", "レンタル品\n購入品\n印刷物", 0, "確認中", "", 1, false, now, now, "system"]);
-  sheet.appendRow(["BLOCK_EXP_001", eventId, "expense", "経費", "会場費・備品費をここに記録", 0, "未入力", "", 2, false, now, now, "system"]);
-  sheet.appendRow(["BLOCK_SCH_001", eventId, "schedule", "当日スケジュール", "13:00 開始\n17:00 完全撤収", 0, "仮設定", "", 3, false, now, now, "system"]);
-  sheet.appendRow(["BLOCK_MEMO_001", eventId, "memo", "メモ", "注意事項をここに記録", 0, "確認中", "", 4, false, now, now, "system"]);
+  sheet.appendRow(["BLOCK_PREP_001", eventId, "preparation", "準備物", JSON.stringify({ mode: "group", groups: [{ category: "景品", items: [{ name: "推しマンド", qty: "20", memo: "メモ" }, { name: "チェキ", qty: "50", memo: "メモ" }] }] }), 0, "確認中", "", 1, false, now, now, "system"]);
+  sheet.appendRow(["BLOCK_EXP_001", eventId, "expense", "経費", JSON.stringify([{ item: "会場費", amount: 270000, memo: "会場利用料" }]), 270000, "確認中", "", 2, false, now, now, "system"]);
+  sheet.appendRow(["BLOCK_SCH_001", eventId, "schedule", "スケジュール", JSON.stringify([{ time: "12:30", item: "受付", memo: "開始" }]), 0, "仮設定", "", 3, false, now, now, "system"]);
+  sheet.appendRow(["BLOCK_MEMO_001", eventId, "memo", "メモ", JSON.stringify([{ item: "注意事項", memo: "変更事項をここに記録" }]), 0, "確認中", "", 4, false, now, now, "system"]);
 }

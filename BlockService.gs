@@ -35,13 +35,15 @@ function createBlock_(params) {
   const sheet = ss.getSheetByName(SHEET_NAMES.BLOCKS);
   const now = new Date().toISOString();
   const blockId = "BLOCK_" + Utilities.getUuid();
+  const eventId = params.eventId || getProperty_("EVENT_ID", "OFFMEETING_001");
+  const updatedBy = params.updatedBy || params.lineUserId || "unknown";
 
   const row = [
     blockId,
-    params.eventId || getProperty_("EVENT_ID", "OFFMEETING_001"),
+    eventId,
     params.blockType || "memo",
     params.blockTitle || "無題",
-    params.blockContent || "",
+    params.blockContent || "[]",
     Number(params.amount || 0),
     params.status || "未設定",
     params.assignedTo || "",
@@ -49,11 +51,12 @@ function createBlock_(params) {
     false,
     now,
     now,
-    params.updatedBy || params.lineUserId || "unknown"
+    updatedBy
   ];
 
   sheet.appendRow(row);
-  appendHistory_(ss, row[1], blockId, "create", "", JSON.stringify(row), row[12]);
+  touchDashboard_(ss, eventId, updatedBy);
+  appendHistory_(ss, eventId, blockId, "create", "", JSON.stringify(row), updatedBy);
 
   return {
     success: true,
@@ -74,7 +77,9 @@ function updateBlock_(params) {
     const row = rowToObject_(headers, values[i]);
     if (row.blockId === blockId) {
       const before = JSON.stringify(row);
+      const updatedBy = params.updatedBy || params.lineUserId || "unknown";
       const updated = Object.assign(row, {
+        blockType: params.blockType !== undefined ? params.blockType : row.blockType,
         blockTitle: params.blockTitle !== undefined ? params.blockTitle : row.blockTitle,
         blockContent: params.blockContent !== undefined ? params.blockContent : row.blockContent,
         amount: params.amount !== undefined ? Number(params.amount) : row.amount,
@@ -82,12 +87,14 @@ function updateBlock_(params) {
         assignedTo: params.assignedTo !== undefined ? params.assignedTo : row.assignedTo,
         sortOrder: params.sortOrder !== undefined ? Number(params.sortOrder) : row.sortOrder,
         updatedAt: new Date().toISOString(),
-        updatedBy: params.updatedBy || params.lineUserId || "unknown"
+        updatedBy: updatedBy
       });
 
-      const newRow = headers.map(function(header) { return updated[header]; });
-      sheet.getRange(i + 1, 1, 1, headers.length).setValues([newRow]);
-      appendHistory_(ss, updated.eventId, blockId, "update", before, JSON.stringify(updated), updated.updatedBy);
+      sheet.getRange(i + 1, 1, 1, headers.length).setValues([headers.map(function(header) {
+        return updated[header];
+      })]);
+      touchDashboard_(ss, updated.eventId, updatedBy);
+      appendHistory_(ss, updated.eventId, blockId, "update", before, JSON.stringify(updated), updatedBy);
 
       return {
         success: true,
@@ -112,13 +119,16 @@ function deleteBlock_(params) {
     const row = rowToObject_(headers, values[i]);
     if (row.blockId === blockId) {
       const before = JSON.stringify(row);
+      const updatedBy = params.updatedBy || params.lineUserId || "unknown";
       row.isDeleted = true;
       row.updatedAt = new Date().toISOString();
-      row.updatedBy = params.updatedBy || params.lineUserId || "unknown";
+      row.updatedBy = updatedBy;
 
-      const newRow = headers.map(function(header) { return row[header]; });
-      sheet.getRange(i + 1, 1, 1, headers.length).setValues([newRow]);
-      appendHistory_(ss, row.eventId, blockId, "delete", before, JSON.stringify(row), row.updatedBy);
+      sheet.getRange(i + 1, 1, 1, headers.length).setValues([headers.map(function(header) {
+        return row[header];
+      })]);
+      touchDashboard_(ss, row.eventId, updatedBy);
+      appendHistory_(ss, row.eventId, blockId, "delete", before, JSON.stringify(row), updatedBy);
 
       return {
         success: true,
@@ -128,4 +138,23 @@ function deleteBlock_(params) {
   }
 
   throw new Error("Block not found: " + blockId);
+}
+
+function touchDashboard_(ss, eventId, updatedBy) {
+  const sheet = ss.getSheetByName(SHEET_NAMES.DASHBOARD);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const eventIndex = headers.indexOf("eventId");
+  const updatedAtIndex = headers.indexOf("lastUpdatedAt");
+  const updatedByIndex = headers.indexOf("lastUpdatedBy");
+
+  if (eventIndex < 0 || updatedAtIndex < 0) return;
+
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][eventIndex] === eventId) {
+      sheet.getRange(i + 1, updatedAtIndex + 1).setValue(new Date().toISOString());
+      if (updatedByIndex >= 0) sheet.getRange(i + 1, updatedByIndex + 1).setValue(updatedBy);
+      return;
+    }
+  }
 }
