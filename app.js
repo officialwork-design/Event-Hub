@@ -5,7 +5,7 @@ const CATEGORY_META = {
   memo: { label: "メモ" }
 };
 
-const ASSET_VERSION = "20260630-prep-hierarchy";
+const ASSET_VERSION = "20260630-section-layout";
 const state = {
   profile: null,
   remoteConfig: { appName: "Event Hub", eventId: "OFFMEETING_001", liffId: "" },
@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 function bindEvents() {
   document.getElementById("reloadButton").addEventListener("click", loadDashboard);
   document.getElementById("editCurrentButton").addEventListener("click", () => openEditor(state.activeFilter));
+  document.getElementById("deleteCurrentButton").addEventListener("click", () => deleteCategory(state.activeFilter));
   document.querySelectorAll(".nav-card").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeFilter = button.dataset.type;
@@ -109,7 +110,7 @@ async function postGas(action, payload) {
 function renderDashboard() {
   const dashboard = state.dashboard.dashboard || {};
   setText("eventName", dashboard.eventName || "-");
-  setText("eventDate", dashboard.eventDate || "-");
+  setText("eventDate", formatEventDate(dashboard.eventDate));
   setText("venue", dashboard.venue || "-");
   setText("expectedGuests", dashboard.expectedGuests || "-");
   setText("lastUpdated", "最終更新: " + formatDateTime(dashboard.lastUpdatedAt));
@@ -127,9 +128,7 @@ function renderCurrent() {
     button.classList.toggle("is-active", button.dataset.type === type);
   });
   setText("panelTitle", meta.label);
-  setText("panelDescription", type === "preparation"
-    ? "一階層 / 二階層どちらでも管理できます。"
-    : meta.label + "をまとめて編集し、更新ボタンで保存します。");
+  setText("panelDescription", "");
   if (type === "preparation") renderPreparationView();
   else renderSimpleView(type);
 }
@@ -142,17 +141,14 @@ function renderPreparationView() {
     container.innerHTML = `<article class="category-card">
       <div class="category-card-header"><span class="block-type">準備物</span><span class="block-status">二階層</span></div>
       ${groups.length ? groups.map(renderPreparationGroup).join("") : '<p class="empty-state">準備物がありません。</p>'}
-      ${actionButtons("準備物")}
     </article>`;
   } else {
     const rows = data.items || [];
     container.innerHTML = `<article class="category-card">
       <div class="category-card-header"><span class="block-type">準備物</span><span class="block-status">一階層</span></div>
       <div class="item-list">${rows.length ? rows.map(renderPrepRow).join("") : '<p class="empty-state">準備物がありません。</p>'}</div>
-      ${actionButtons("準備物")}
     </article>`;
   }
-  bindPanelButtons();
 }
 
 function renderPreparationGroup(group) {
@@ -187,9 +183,7 @@ function renderSimpleView(type) {
     <div class="category-card-header"><span class="block-type">${meta.label}</span><span class="block-status">一括管理</span></div>
     <div class="item-list">${rows.length ? rows.map((row) => renderSimpleRow(row, type)).join("") : '<p class="empty-state">項目がありません。</p>'}</div>
     ${total}
-    ${actionButtons(meta.label)}
   </article>`;
-  bindPanelButtons();
 }
 
 function renderSimpleRow(row, type) {
@@ -203,15 +197,14 @@ function renderSimpleRow(row, type) {
 }
 
 function actionButtons(label) {
-  return `<div class="panel-actions panel-actions-inline">
-    <button class="primary-button" id="openEditorButton">${label}を編集</button>
-    <button class="danger-button" id="deleteButton">${label}全体を削除</button>
-  </div>`;
+  return "";
 }
 
 function bindPanelButtons() {
-  document.getElementById("openEditorButton").addEventListener("click", () => openEditor(state.activeFilter));
-  document.getElementById("deleteButton").addEventListener("click", () => deleteCategory(state.activeFilter));
+  const openButton = document.getElementById("openEditorButton");
+  const deleteButton = document.getElementById("deleteButton");
+  if (openButton) openButton.addEventListener("click", () => openEditor(state.activeFilter));
+  if (deleteButton) deleteButton.addEventListener("click", () => deleteCategory(state.activeFilter));
 }
 
 function openEditor(type) {
@@ -219,7 +212,7 @@ function openEditor(type) {
   const meta = CATEGORY_META[type];
   setText("modalTitle", meta.label + "編集");
   setText("saveCategoryButton", meta.label + "を更新");
-  setText("deleteCategoryButton", meta.label + "全体を削除");
+  setText("deleteCategoryButton", "削除");
 
   if (type === "preparation") {
     const data = getPreparationData();
@@ -342,10 +335,10 @@ function qtyEditor(attrs, qty) {
   const value = String(qty || "");
   const isPreset = isPresetQty(value);
   return `<div class="qty-editor">
-    <select ${attrs} data-field="qtyMode">
+    <select ${attrs} data-field="qtyMode" class="${isPreset ? "" : "is-hidden"}">
       ${qtyOptions(isPreset ? value : "other")}
     </select>
-    <input ${attrs} data-field="qty" class="${isPreset ? "is-hidden" : ""}" placeholder="その他" value="${escapeAttr(isPreset ? "" : value)}">
+    <input ${attrs} data-field="qty" class="${isPreset ? "is-hidden" : ""}" placeholder="" value="${escapeAttr(isPreset ? "" : value)}">
   </div>`;
 }
 
@@ -476,7 +469,7 @@ async function deleteCategory(type) {
     alert("削除できるデータがありません。");
     return;
   }
-  if (!confirm(meta.label + "全体を削除しますか？")) return;
+  if (!confirm(meta.label + "を削除しますか？")) return;
   await postGas("deleteBlock", { blockId: block.blockId });
   closeModal();
   await loadDashboard();
@@ -695,6 +688,18 @@ function formatDateTime(value) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit"
+  }).format(date);
+}
+
+function formatEventDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
   }).format(date);
 }
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Event Hub</title>
-  <link rel="stylesheet" href="style.css?v=20260630-prep-hierarchy" />
+  <link rel="stylesheet" href="style.css?v=20260630-section-layout" />
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
@@ -13,7 +13,6 @@
       <div>
         <p class="eyebrow">LINE LIFF Event Management</p>
         <h1>Event Hub</h1>
-        <p class="lead">オフ会の資料、準備物、経費、当日スケジュールをまとめて管理します。</p>
       </div>
       <div class="status-card">
         <span id="connectionStatus" class="status-badge loading">起動中</span>
@@ -23,28 +22,31 @@
 
     <main>
       <section class="summary-grid">
-        <article class="summary-card"><span>オフ会名</span><strong id="eventName">-</strong></article>
+        <article class="summary-card"><span>イベント名</span><strong id="eventName">-</strong></article>
         <article class="summary-card"><span>開催日</span><strong id="eventDate">-</strong></article>
         <article class="summary-card"><span>会場</span><strong id="venue">-</strong></article>
         <article class="summary-card"><span>予定人数</span><strong id="expectedGuests">-</strong></article>
       </section>
 
       <section class="nav-grid">
-        <button class="nav-card" data-type="preparation"><span>準備物</span><strong id="preparationCount">0件</strong><small>一階層 / 二階層対応</small></button>
-        <button class="nav-card" data-type="expense"><span>経費</span><strong id="expenseTotal">¥0</strong><small>項目・金額・備考</small></button>
-        <button class="nav-card" data-type="schedule"><span>スケジュール</span><strong id="scheduleCount">0件</strong><small>時間・項目・備考</small></button>
-        <button class="nav-card" data-type="memo"><span>メモ</span><strong id="memoCount">0件</strong><small>項目・備考</small></button>
+        <button class="nav-card" data-type="preparation"><span>準備物</span><strong id="preparationCount">0件</strong></button>
+        <button class="nav-card" data-type="expense"><span>経費</span><strong id="expenseTotal">¥0</strong></button>
+        <button class="nav-card" data-type="schedule"><span>スケジュール</span><strong id="scheduleCount">0件</strong></button>
+        <button class="nav-card" data-type="memo"><span>メモ</span><strong id="memoCount">0件</strong></button>
       </section>
 
       <section class="panel">
         <div class="panel-header">
           <div>
-            <h2 id="panelTitle">準備物</h2>
-            <p id="panelDescription">カテゴリを選択すると、まとめて編集できます。</p>
-          </div>
-          <div class="panel-actions">
-            <button id="editCurrentButton" class="primary-button">選択カテゴリを編集</button>
-            <button id="reloadButton" class="secondary-button">再読み込み</button>
+            <div class="panel-title-row">
+              <h2 id="panelTitle">準備物</h2>
+              <div class="panel-title-actions">
+                <button id="editCurrentButton" class="primary-button">編集</button>
+                <button id="deleteCurrentButton" class="danger-button">削除</button>
+                <button id="reloadButton" class="secondary-button">再読み込み</button>
+              </div>
+            </div>
+            <p id="panelDescription"></p>
           </div>
         </div>
         <div id="blockList" class="block-list"></div>
@@ -73,7 +75,7 @@
       </div>
 
       <div class="modal-actions">
-        <button id="deleteCategoryButton" class="danger-button" type="button">全体を削除</button>
+        <button id="deleteCategoryButton" class="danger-button" type="button">削除</button>
         <div class="modal-actions-right">
           <button class="secondary-button" type="button" data-close-modal>キャンセル</button>
           <button id="saveCategoryButton" class="primary-button" type="button">更新</button>
@@ -82,7 +84,7 @@
     </section>
   </div>
 
-  <script src="config.js?v=20260630-prep-hierarchy"></script>
-  <script src="app.js?v=20260630-prep-hierarchy"></script>
+  <script src="config.js?v=20260630-section-layout"></script>
+  <script src="app.js?v=20260630-section-layout"></script>
 </body>
 </html>
