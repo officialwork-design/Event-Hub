@@ -1,1 +1,7 @@
-const CONFIG={LIFF_ID:'',GAS_WEB_APP_URL:''};
+const CONFIG = {
+  APP_NAME: 'Event Hub',
+  EVENT_ID: 'OFFMEETING_001',
+  GAS_WEB_APP_URL: '',
+  LIFF_ID_FALLBACK: '',
+  USE_GAS_CONFIG: true
+};
