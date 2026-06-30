@@ -1,285 +1,50 @@
-const CATEGORY_META={
-  preparation:{label:"準備物",title:"準備物",amount:false,placeholder:"例：机、椅子、印刷物"},
-  expense:{label:"経費",title:"経費",amount:true,placeholder:"例：会場費、飲食費、備品費"},
-  schedule:{label:"スケジュール",title:"スケジュール",amount:false,placeholder:"例：受付、開始、撤収"},
-  memo:{label:"メモ",title:"メモ",amount:false,placeholder:"例：注意事項、連絡事項"}
-};
-const state={liffReady:false,profile:null,remoteConfig:{appName:"Event Hub",eventId:"OFFMEETING_001",liffId:""},dashboard:null,activeFilter:"preparation",editingType:null,draftRows:[]};
-
+const CATEGORY_META={preparation:{label:"準備物"},expense:{label:"経費"},schedule:{label:"スケジュール"},memo:{label:"メモ"}};
+const state={profile:null,remoteConfig:{appName:"Event Hub",eventId:"OFFMEETING_001",liffId:""},dashboard:null,activeFilter:"preparation",editingType:null,draftMode:"flat",draftRows:[],draftGroups:[]};
 document.addEventListener("DOMContentLoaded",async()=>{bindEvents();await boot();});
 
 function bindEvents(){
-  const reloadButton=document.getElementById("reloadButton");
-  if(reloadButton) reloadButton.addEventListener("click",async()=>{await loadDashboard();});
-
-  const editButton=document.getElementById("editCurrentButton");
-  if(editButton) editButton.addEventListener("click",()=>openBatchEditor(state.activeFilter||"preparation"));
-
-  document.querySelectorAll(".nav-card").forEach(button=>{
-    button.addEventListener("click",()=>{
-      state.activeFilter=button.dataset.type;
-      renderCurrentCategory();
-    });
-  });
-
+  document.getElementById("reloadButton").addEventListener("click",loadDashboard);
+  document.getElementById("editCurrentButton").addEventListener("click",()=>openEditor(state.activeFilter));
+  document.querySelectorAll(".nav-card").forEach(btn=>btn.addEventListener("click",()=>{state.activeFilter=btn.dataset.type;renderCurrent();}));
   document.querySelectorAll("[data-close-modal]").forEach(el=>el.addEventListener("click",closeModal));
-
-  document.getElementById("addRowButton").addEventListener("click",()=>{state.draftRows.push(createEmptyRow());renderDraftRows();});
-  document.getElementById("saveCategoryButton").addEventListener("click",saveCurrentCategory);
-  document.getElementById("deleteCategoryButton").addEventListener("click",deleteCurrentCategory);
+  document.getElementById("addRowButton").addEventListener("click",addRow);
+  document.getElementById("addGroupButton").addEventListener("click",addGroup);
+  document.getElementById("saveCategoryButton").addEventListener("click",saveCurrent);
+  document.getElementById("deleteCategoryButton").addEventListener("click",()=>deleteCategory(state.editingType));
 }
-
-async function boot(){
-  setStatus("起動中","loading");
-  try{
-    state.remoteConfig=await loadRemoteConfig();
-    await initLiffIfPossible();
-    await loadDashboard();
-    setStatus("接続OK","success");
-  }catch(error){
-    console.error(error);
-    setStatus("接続エラー","error");
-    renderError(error.message||"初期化に失敗しました。");
-  }
-}
-
-async function loadRemoteConfig(){
-  if(!CONFIG.GAS_WEB_APP_URL) throw new Error("config.jsにGAS_WEB_APP_URLが設定されていません。");
-  const response=await fetch(buildGasUrl("getConfig"));
-  const data=await response.json();
-  if(!data.success) throw new Error(data.message||"設定取得に失敗しました。");
-  return data;
-}
-
-async function initLiffIfPossible(){
-  const liffId=state.remoteConfig?.liffId||"";
-  if(!liffId||typeof liff==="undefined") return;
-  await liff.init({liffId});
-  state.liffReady=true;
-  if(liff.isLoggedIn()) state.profile=await liff.getProfile();
-}
-
-async function loadDashboard(){
-  setStatus("読込中","loading");
-  const response=await fetch(buildGasUrl("getDashboard",{eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId()}));
-  const data=await response.json();
-  if(!data.success) throw new Error(data.message||"ダッシュボード取得に失敗しました。");
-  state.dashboard=data;
-  renderDashboard(data);
-  setStatus("接続OK","success");
-}
-
-function buildGasUrl(action,params={}){
-  const url=new URL(CONFIG.GAS_WEB_APP_URL);
-  url.searchParams.set("action",action);
-  Object.entries(params).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,value);});
-  return url.toString();
-}
-
-async function postGas(action,payload={}){
-  const body=Object.assign({action,eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId(),updatedBy:getDisplayName()},payload);
-  const response=await fetch(CONFIG.GAS_WEB_APP_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
-  const data=await response.json();
-  if(!data.success) throw new Error(data.message||"保存に失敗しました。");
-  return data;
-}
-
-function renderDashboard(data){
-  const dashboard=data.dashboard||{};
-  setText("eventName",dashboard.eventName||"-");
-  setText("eventDate",dashboard.eventDate||"-");
-  setText("venue",dashboard.venue||"-");
-  setText("expectedGuests",dashboard.expectedGuests||"-");
-  setText("lastUpdated","最終更新: "+formatDateTime(dashboard.lastUpdatedAt));
-
-  setText("preparationCount",`${parseRowsByType("preparation").length}件`);
-  setText("expenseTotal",formatCurrency(sumRows(parseRowsByType("expense"))));
-  setText("scheduleCount",`${parseRowsByType("schedule").length}件`);
-  setText("memoCount",`${parseRowsByType("memo").length}件`);
-
-  renderCurrentCategory();
-}
-
-function renderCurrentCategory(){
-  const type=state.activeFilter||"preparation";
-  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
-
-  document.querySelectorAll(".nav-card").forEach(btn=>btn.classList.toggle("is-active",btn.dataset.type===type));
-
-  setText("panelTitle",`${meta.label}一覧`);
-  setText("panelDescription",`${meta.label}はカテゴリ全体をまとめて編集し、「${meta.label}を更新」を押した時だけ保存されます。`);
-
-  const rows=parseRowsByType(type);
-  const block=getBlockByType(type);
-  const container=document.getElementById("blockList");
-  if(!container) return;
-
-  const total=meta.amount?`<small class="amount">合計 ${formatCurrency(sumRows(rows))}</small>`:"";
-  const list=rows.length
-    ? `<div class="item-list">${rows.map(row=>renderViewRow(row,meta)).join("")}</div>`
-    : `<p class="empty-state">${meta.label}項目がありません。「選択カテゴリを編集」から追加してください。</p>`;
-
-  container.innerHTML=`<article class="category-card">
-    <div class="category-card-header">
-      <span class="block-type">${meta.label}</span>
-      <span class="block-status">${escapeHtml(block?.status||"一括管理")}</span>
-    </div>
-    <h3>${meta.label}</h3>
-    <p>このカテゴリは1行ずつ即保存せず、まとめて編集してから更新します。</p>
-    ${list}
-    ${total}
-    <div class="panel-actions" style="margin-top:14px">
-      <button class="primary-button" id="openBatchEditorButton">${meta.label}を編集</button>
-      <button class="danger-button" id="deleteBatchButton">${meta.label}全体を削除</button>
-    </div>
-  </article>`;
-
-  document.getElementById("openBatchEditorButton").addEventListener("click",()=>openBatchEditor(type));
-  document.getElementById("deleteBatchButton").addEventListener("click",()=>deleteCategory(type));
-}
-
-function renderViewRow(row,meta){
-  const amount=meta.amount?`<span>${formatCurrency(row.amount||0)}</span>`:"<span></span>";
-  return `<div class="item-row">
-    <strong>${escapeHtml(row.title||"")}</strong>
-    ${amount}
-    <small>${escapeHtml(row.memo||"")}</small>
-  </div>`;
-}
-
-function openBatchEditor(type){
-  state.editingType=type;
-  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
-  state.draftRows=parseRowsByType(type).map(row=>({title:row.title||"",amount:row.amount||"",memo:row.memo||""}));
-  if(!state.draftRows.length) state.draftRows=[createEmptyRow()];
-
-  setText("modalTitle",`${meta.label}編集`);
-  setText("modalDescription",`追加・削除・変更はまだ保存されません。「${meta.label}を更新」を押した時だけ保存されます。`);
-  setText("saveCategoryButton",`${meta.label}を更新`);
-  setText("deleteCategoryButton",`${meta.label}全体を削除`);
-
-  renderDraftRows();
-  openModal();
-}
-
-function renderDraftRows(){
-  const container=document.getElementById("batchRows");
-  if(!container) return;
-
-  const type=state.editingType;
-  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
-  container.innerHTML=state.draftRows.map((row,index)=>`
-    <div class="batch-row">
-      <input data-field="title" data-index="${index}" placeholder="${meta.placeholder}" value="${escapeAttr(row.title||"")}">
-      <input data-field="amount" data-index="${index}" type="number" min="0" step="1" placeholder="金額" value="${escapeAttr(row.amount||"")}" ${meta.amount?"":"disabled"}>
-      <textarea data-field="memo" data-index="${index}" placeholder="メモ・詳細">${escapeHtml(row.memo||"")}</textarea>
-      <button type="button" class="danger-button" data-delete-row="${index}">削除</button>
-    </div>
-  `).join("");
-
-  container.querySelectorAll("input,textarea").forEach(input=>{
-    input.addEventListener("input",event=>{
-      const index=Number(event.target.dataset.index);
-      const field=event.target.dataset.field;
-      state.draftRows[index][field]=event.target.value;
-      updateDraftTotal();
-    });
-  });
-
-  container.querySelectorAll("[data-delete-row]").forEach(button=>{
-    button.addEventListener("click",event=>{
-      state.draftRows.splice(Number(event.target.dataset.deleteRow),1);
-      if(!state.draftRows.length) state.draftRows=[createEmptyRow()];
-      renderDraftRows();
-    });
-  });
-
-  updateDraftTotal();
-}
-
-function updateDraftTotal(){
-  const meta=CATEGORY_META[state.editingType]||CATEGORY_META.memo;
-  const total=sumRows(state.draftRows);
-  setText("batchTotal",meta.amount?`合計 ${formatCurrency(total)}`:`${state.draftRows.filter(isMeaningfulRow).length}件`);
-}
-
-async function saveCurrentCategory(){
-  const type=state.editingType;
-  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
-  const block=getBlockByType(type);
-  const rows=state.draftRows.filter(isMeaningfulRow).map(row=>({title:(row.title||"").trim(),amount:Number(row.amount||0),memo:(row.memo||"").trim()}));
-  const total=sumRows(rows);
-
-  setStatus(`${meta.label}保存中`,"loading");
-  try{
-    const payload={blockType:type,blockTitle:meta.title,blockContent:JSON.stringify(rows),amount:meta.amount?total:0,status:"更新済み",sortOrder:getSortOrder(type)};
-    if(block?.blockId){
-      await postGas("updateBlock",Object.assign({blockId:block.blockId},payload));
-    }else{
-      await postGas("createBlock",payload);
-    }
-    closeModal();
-    await loadDashboard();
-  }catch(error){
-    alert(error.message);
-    setStatus("保存エラー","error");
-  }
-}
-
-async function deleteCurrentCategory(){
-  if(!state.editingType) return;
-  await deleteCategory(state.editingType);
-}
-
-async function deleteCategory(type){
-  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
-  const block=getBlockByType(type);
-  if(!block?.blockId){
-    alert(`削除できる${meta.label}がありません。`);
-    return;
-  }
-  if(!confirm(`${meta.label}全体を削除しますか？`)) return;
-
-  setStatus(`${meta.label}削除中`,"loading");
-  try{
-    await postGas("deleteBlock",{blockId:block.blockId});
-    closeModal();
-    await loadDashboard();
-  }catch(error){
-    alert(error.message);
-    setStatus("削除エラー","error");
-  }
-}
-
-function getBlockByType(type){return(state.dashboard?.blocks||[]).find(block=>block.blockType===type)||null;}
-
-function parseRowsByType(type){
-  const block=getBlockByType(type);
-  if(!block) return [];
-  try{
-    const parsed=JSON.parse(block.blockContent||"[]");
-    if(Array.isArray(parsed)) return parsed;
-  }catch(error){}
-  if(block.blockContent){
-    return block.blockContent.split(/\n+/).filter(Boolean).map(text=>({title:text,amount:Number(block.amount||0),memo:""}));
-  }
-  return [];
-}
-
-function createEmptyRow(){return{title:"",amount:"",memo:""};}
-function isMeaningfulRow(row){return(row.title||"").trim()||Number(row.amount||0)>0||(row.memo||"").trim();}
-function sumRows(rows){return rows.reduce((sum,row)=>sum+Number(row.amount||0),0);}
-function getSortOrder(type){return{preparation:1,expense:2,schedule:3,memo:4}[type]||999;}
-
-function openModal(){const modal=document.getElementById("batchModal");modal.classList.add("is-open");modal.setAttribute("aria-hidden","false");}
-function closeModal(){const modal=document.getElementById("batchModal");modal.classList.remove("is-open");modal.setAttribute("aria-hidden","true");state.editingType=null;state.draftRows=[];}
-
-function renderError(message){const container=document.getElementById("blockList");if(container) container.innerHTML=`<p class="error-state">${escapeHtml(message)}</p>`;}
-function getLineUserId(){return state.profile?.userId||"";}
-function getDisplayName(){return state.profile?.displayName||"unknown";}
-function setStatus(text,type){const element=document.getElementById("connectionStatus");if(!element)return;element.textContent=text;element.className=`status-badge ${type||""}`;}
-function setText(id,text){const element=document.getElementById(id);if(element) element.textContent=text;}
-function formatCurrency(value){return new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(value||0));}
-function formatDateTime(value){if(!value)return"-";const date=new Date(value);if(Number.isNaN(date.getTime()))return value;return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(date);}
-function escapeHtml(value){return String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
-function escapeAttr(value){return escapeHtml(value).replace(/`/g,"&#096;");}
+async function boot(){try{setStatus("起動中","loading");state.remoteConfig=await loadRemoteConfig();await initLiffIfPossible();await loadDashboard();}catch(e){console.error(e);setStatus("接続エラー","error");renderError(e.message);}}
+async function loadRemoteConfig(){if(!CONFIG.GAS_WEB_APP_URL)throw new Error("config.jsにGAS_WEB_APP_URLが設定されていません。");const res=await fetch(buildGasUrl("getConfig"));const data=await res.json();if(!data.success)throw new Error(data.message||"設定取得に失敗しました。");return data;}
+async function initLiffIfPossible(){const id=state.remoteConfig.liffId||"";if(!id||typeof liff==="undefined")return;await liff.init({liffId:id});if(liff.isLoggedIn())state.profile=await liff.getProfile();}
+async function loadDashboard(){setStatus("読込中","loading");const res=await fetch(buildGasUrl("getDashboard",{eventId:state.remoteConfig.eventId,lineUserId:getLineUserId()}));const data=await res.json();if(!data.success)throw new Error(data.message||"取得に失敗しました。");state.dashboard=data;renderDashboard();setStatus("接続OK","success");}
+function buildGasUrl(action,params={}){const url=new URL(CONFIG.GAS_WEB_APP_URL);url.searchParams.set("action",action);Object.entries(params).forEach(([k,v])=>{if(v)url.searchParams.set(k,v);});return url.toString();}
+async function postGas(action,payload){const body=Object.assign({action,eventId:state.remoteConfig.eventId,lineUserId:getLineUserId(),updatedBy:getDisplayName()},payload);const res=await fetch(CONFIG.GAS_WEB_APP_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});const data=await res.json();if(!data.success)throw new Error(data.message||"保存に失敗しました。");return data;}
+function renderDashboard(){const d=state.dashboard.dashboard||{};setText("eventName",d.eventName||"-");setText("eventDate",d.eventDate||"-");setText("venue",d.venue||"-");setText("expectedGuests",d.expectedGuests||"-");setText("lastUpdated","最終更新: "+formatDateTime(d.lastUpdatedAt));setText("preparationCount",countPreparation()+"件");setText("expenseTotal",formatCurrency(sumRows(getRows("expense"))));setText("scheduleCount",getRows("schedule").length+"件");setText("memoCount",getRows("memo").length+"件");renderCurrent();}
+function renderCurrent(){const type=state.activeFilter,meta=CATEGORY_META[type];document.querySelectorAll(".nav-card").forEach(btn=>btn.classList.toggle("is-active",btn.dataset.type===type));setText("panelTitle",meta.label);setText("panelDescription",type==="preparation"?"一階層 / 二階層どちらでも管理できます。":meta.label+"をまとめて編集し、更新ボタンで保存します。");if(type==="preparation")renderPreparationView();else renderSimpleView(type);}
+function renderPreparationView(){const container=document.getElementById("blockList");const data=getPreparationData();if(data.mode==="group"){const groups=data.groups||[];container.innerHTML=`<article class="category-card"><div class="category-card-header"><span class="block-type">準備物</span><span class="block-status">二階層</span></div>${groups.length?groups.map(g=>`<div class="item-group"><h4>${escapeHtml(g.category||"未分類")}</h4>${(g.items||[]).map(renderPrepLine).join("")}</div>`).join(""):'<p class="empty-state">準備物がありません。</p>'}${actionButtons("準備物")}</article>`;}else{const rows=data.items||[];container.innerHTML=`<article class="category-card"><div class="category-card-header"><span class="block-type">準備物</span><span class="block-status">一階層</span></div><div class="item-list">${rows.length?rows.map(renderPrepRow).join(""):'<p class="empty-state">準備物がありません。</p>'}</div>${actionButtons("準備物")}</article>`;}bindPanelButtons();}
+function renderPrepRow(row){return `<div class="item-row"><strong>${escapeHtml(row.name||"")}</strong><span>${escapeHtml(row.qty||"")}</span><small>${escapeHtml(row.memo||"")}</small></div>`;}
+function renderPrepLine(row){return `<div class="item-line"><strong>・${escapeHtml(row.name||"")}</strong><span>${escapeHtml(row.qty||"")}</span><small>${escapeHtml(row.memo||"")}</small></div>`;}
+function renderSimpleView(type){const meta=CATEGORY_META[type],rows=getRows(type);const total=type==="expense"?`<small class="amount">合計 ${formatCurrency(sumRows(rows))}</small>`:"";document.getElementById("blockList").innerHTML=`<article class="category-card"><div class="category-card-header"><span class="block-type">${meta.label}</span><span class="block-status">一括管理</span></div><div class="item-list">${rows.length?rows.map(row=>renderSimpleRow(row,type)).join(""):'<p class="empty-state">項目がありません。</p>'}</div>${total}${actionButtons(meta.label)}</article>`;bindPanelButtons();}
+function renderSimpleRow(row,type){if(type==="expense")return `<div class="item-row"><strong>${escapeHtml(row.item||row.title||"")}</strong><span>${formatCurrency(row.amount||0)}</span><small>${escapeHtml(row.memo||"")}</small></div>`;if(type==="schedule")return `<div class="item-row"><strong>${escapeHtml(row.time||"")}</strong><span>${escapeHtml(row.item||row.title||"")}</span><small>${escapeHtml(row.memo||"")}</small></div>`;return `<div class="item-row"><strong>${escapeHtml(row.item||row.title||"")}</strong><span></span><small>${escapeHtml(row.memo||"")}</small></div>`;}
+function actionButtons(label){return `<div class="panel-actions" style="margin-top:14px"><button class="primary-button" id="openEditorButton">${label}を編集</button><button class="danger-button" id="deleteButton">${label}全体を削除</button></div>`;}
+function bindPanelButtons(){document.getElementById("openEditorButton").addEventListener("click",()=>openEditor(state.activeFilter));document.getElementById("deleteButton").addEventListener("click",()=>deleteCategory(state.activeFilter));}
+function openEditor(type){state.editingType=type;const meta=CATEGORY_META[type];setText("modalTitle",meta.label+"編集");setText("saveCategoryButton",meta.label+"を更新");setText("deleteCategoryButton",meta.label+"全体を削除");if(type==="preparation"){const data=getPreparationData();state.draftMode=data.mode||"flat";state.draftRows=(data.items||[]).map(x=>Object.assign({},x));state.draftGroups=(data.groups||[]).map(g=>({category:g.category||"",items:(g.items||[]).map(x=>Object.assign({},x))}));}else{state.draftMode="flat";state.draftRows=getRows(type).map(x=>Object.assign({},x));}if(!state.draftRows.length&&type!=="preparation")state.draftRows=[emptySimpleRow(type)];if(type==="preparation"&&state.draftMode==="flat"&&!state.draftRows.length)state.draftRows=[emptyPrepRow()];if(type==="preparation"&&state.draftMode==="group"&&!state.draftGroups.length)state.draftGroups=[{category:"",items:[emptyPrepRow()]}];renderModeSwitch();renderEditorRows();openModal();}
+function renderModeSwitch(){const area=document.getElementById("modeSwitch");if(state.editingType!=="preparation"){area.innerHTML="";document.getElementById("addGroupButton").style.display="none";return;}area.innerHTML=`<span>準備物の構造</span><button class="mode-button ${state.draftMode==="flat"?"is-active":""}" id="flatModeButton">一階層</button><button class="mode-button ${state.draftMode==="group"?"is-active":""}" id="groupModeButton">二階層</button>`;document.getElementById("flatModeButton").addEventListener("click",()=>{state.draftMode="flat";if(!state.draftRows.length)state.draftRows=flattenGroups();renderModeSwitch();renderEditorRows();});document.getElementById("groupModeButton").addEventListener("click",()=>{state.draftMode="group";if(!state.draftGroups.length)state.draftGroups=[{category:"",items:state.draftRows.length?state.draftRows:[emptyPrepRow()]}];renderModeSwitch();renderEditorRows();});}
+function renderEditorRows(){const type=state.editingType,wrap=document.getElementById("batchRows");document.getElementById("addGroupButton").style.display=(type==="preparation"&&state.draftMode==="group")?"inline-flex":"none";document.getElementById("addRowButton").style.display=(type==="preparation"&&state.draftMode==="group")?"none":"inline-flex";if(type==="preparation"&&state.draftMode==="group"){wrap.innerHTML=state.draftGroups.map((g,gi)=>`<div class="group-editor"><div class="group-header"><input data-group="${gi}" data-field="category" placeholder="例：景品" value="${escapeAttr(g.category||"")}"><button class="danger-button" data-delete-group="${gi}" type="button">カテゴリ削除</button></div><div class="group-items">${(g.items||[]).map((row,ri)=>prepItemEditor(row,gi,ri)).join("")}</div><button class="secondary-button" data-add-item="${gi}" type="button">項目追加</button></div>`).join("");}else{wrap.innerHTML=state.draftRows.map((row,i)=>rowEditor(row,i,type)).join("");}bindEditorInputs();updateDraftTotal();}
+function prepItemEditor(row,gi,ri){return `<div class="group-item"><input data-group="${gi}" data-row="${ri}" data-field="name" placeholder="項目" value="${escapeAttr(row.name||"")}"><select data-group="${gi}" data-row="${ri}" data-field="qty">${qtyOptions(row.qty)}</select><textarea data-group="${gi}" data-row="${ri}" data-field="memo" placeholder="メモ">${escapeHtml(row.memo||"")}</textarea><button class="danger-button" data-delete-item="${gi}:${ri}" type="button">削除</button></div>`;}
+function rowEditor(row,i,type){if(type==="preparation")return `<div class="batch-row"><input data-index="${i}" data-field="name" placeholder="項目" value="${escapeAttr(row.name||"")}"><select data-index="${i}" data-field="qty">${qtyOptions(row.qty)}</select><textarea data-index="${i}" data-field="memo" placeholder="メモ">${escapeHtml(row.memo||"")}</textarea><button class="danger-button" data-delete-row="${i}" type="button">削除</button></div>`;if(type==="expense")return `<div class="batch-row"><input data-index="${i}" data-field="item" placeholder="項目" value="${escapeAttr(row.item||row.title||"")}"><input data-index="${i}" data-field="amount" type="number" placeholder="金額" value="${escapeAttr(row.amount||"")}"><textarea data-index="${i}" data-field="memo" placeholder="備考">${escapeHtml(row.memo||"")}</textarea><button class="danger-button" data-delete-row="${i}" type="button">削除</button></div>`;if(type==="schedule")return `<div class="batch-row"><input data-index="${i}" data-field="time" placeholder="時間" value="${escapeAttr(row.time||"")}"><input data-index="${i}" data-field="item" placeholder="項目" value="${escapeAttr(row.item||row.title||"")}"><textarea data-index="${i}" data-field="memo" placeholder="備考">${escapeHtml(row.memo||"")}</textarea><button class="danger-button" data-delete-row="${i}" type="button">削除</button></div>`;return `<div class="batch-row"><input data-index="${i}" data-field="item" placeholder="項目" value="${escapeAttr(row.item||row.title||"")}"><span></span><textarea data-index="${i}" data-field="memo" placeholder="備考">${escapeHtml(row.memo||"")}</textarea><button class="danger-button" data-delete-row="${i}" type="button">削除</button></div>`;}
+function bindEditorInputs(){document.querySelectorAll("#batchRows input,#batchRows textarea,#batchRows select").forEach(el=>el.addEventListener("input",updateDraftFromInput));document.querySelectorAll("[data-delete-row]").forEach(btn=>btn.addEventListener("click",e=>{state.draftRows.splice(Number(e.target.dataset.deleteRow),1);if(!state.draftRows.length)state.draftRows=[emptySimpleRow(state.editingType)];renderEditorRows();}));document.querySelectorAll("[data-delete-group]").forEach(btn=>btn.addEventListener("click",e=>{state.draftGroups.splice(Number(e.target.dataset.deleteGroup),1);if(!state.draftGroups.length)state.draftGroups=[{category:"",items:[emptyPrepRow()]}];renderEditorRows();}));document.querySelectorAll("[data-add-item]").forEach(btn=>btn.addEventListener("click",e=>{state.draftGroups[Number(e.target.dataset.addItem)].items.push(emptyPrepRow());renderEditorRows();}));document.querySelectorAll("[data-delete-item]").forEach(btn=>btn.addEventListener("click",e=>{const [gi,ri]=e.target.dataset.deleteItem.split(":").map(Number);state.draftGroups[gi].items.splice(ri,1);if(!state.draftGroups[gi].items.length)state.draftGroups[gi].items=[emptyPrepRow()];renderEditorRows();}));}
+function updateDraftFromInput(e){const el=e.target,field=el.dataset.field,value=el.value;if(el.dataset.group!==undefined&&el.dataset.row!==undefined){state.draftGroups[Number(el.dataset.group)].items[Number(el.dataset.row)][field]=value;}else if(el.dataset.group!==undefined){state.draftGroups[Number(el.dataset.group)][field]=value;}else state.draftRows[Number(el.dataset.index)][field]=value;updateDraftTotal();}
+function addRow(){state.draftRows.push(emptySimpleRow(state.editingType));renderEditorRows();}
+function addGroup(){state.draftGroups.push({category:"",items:[emptyPrepRow()]});renderEditorRows();}
+function qtyOptions(selected){let html="";for(let i=1;i<=20;i++)html+=`<option value="${i}" ${String(selected)==String(i)?"selected":""}>${i}</option>`;html+=`<option value="other" ${String(selected)==="other"?"selected":""}>その他</option>`;return html;}
+async function saveCurrent(){const type=state.editingType,meta=CATEGORY_META[type];let content,amount=0;if(type==="preparation"){const data=state.draftMode==="group"?{mode:"group",groups:cleanGroups()}:{mode:"flat",items:cleanPrepRows(state.draftRows)};content=JSON.stringify(data);}else{const rows=cleanSimpleRows(state.draftRows,type);content=JSON.stringify(rows);if(type==="expense")amount=sumRows(rows);}try{setStatus(meta.label+"保存中","loading");const block=getBlock(type);const payload={blockType:type,blockTitle:meta.label,blockContent:content,amount,status:"更新済み",sortOrder:getSortOrder(type)};if(block?.blockId)await postGas("updateBlock",Object.assign({blockId:block.blockId},payload));else await postGas("createBlock",payload);closeModal();await loadDashboard();}catch(e){alert(e.message);setStatus("保存エラー","error");}}
+async function deleteCategory(type){const block=getBlock(type),meta=CATEGORY_META[type];if(!block?.blockId){alert("削除できるデータがありません。");return;}if(!confirm(meta.label+"全体を削除しますか？"))return;await postGas("deleteBlock",{blockId:block.blockId});closeModal();await loadDashboard();}
+function getBlock(type){return(state.dashboard?.blocks||[]).find(b=>b.blockType===type)||null;}
+function getRows(type){const block=getBlock(type);if(!block)return[];try{const x=JSON.parse(block.blockContent||"[]");return Array.isArray(x)?x:[]}catch(e){return block.blockContent?block.blockContent.split(/\n+/).filter(Boolean).map(t=>({item:t,memo:""})):[]}}
+function getPreparationData(){const block=getBlock("preparation");if(!block)return{mode:"flat",items:[]};try{const x=JSON.parse(block.blockContent||"{}");if(Array.isArray(x))return{mode:"flat",items:x.map(v=>({name:v.name||v.item||v.title||"",qty:v.qty||"",memo:v.memo||""}))};if(x.mode)return x;}catch(e){}return{mode:"flat",items:block.blockContent?block.blockContent.split(/\n+/).filter(Boolean).map(t=>({name:t,qty:"",memo:""})):[]};}
+function countPreparation(){const d=getPreparationData();return d.mode==="group"?(d.groups||[]).reduce((s,g)=>s+(g.items||[]).length,0):(d.items||[]).length;}
+function cleanPrepRows(rows){return rows.filter(r=>(r.name||"").trim()||(r.memo||"").trim()).map(r=>({name:(r.name||"").trim(),qty:r.qty||"",memo:(r.memo||"").trim()}));}
+function cleanGroups(){return state.draftGroups.map(g=>({category:(g.category||"").trim(),items:cleanPrepRows(g.items||[])})).filter(g=>g.category||g.items.length);}
+function cleanSimpleRows(rows,type){return rows.filter(r=>(r.item||r.title||r.time||"").trim()||(r.memo||"").trim()||Number(r.amount||0)>0).map(r=>({time:r.time||"",item:(r.item||r.title||"").trim(),amount:Number(r.amount||0),memo:(r.memo||"").trim()}));}
+function emptyPrepRow(){return{name:"",qty:"1",memo:""};}function emptySimpleRow(type){if(type==="expense")return{item:"",amount:"",memo:""};if(type==="schedule")return{time:"",item:"",memo:""};return type==="preparation"?emptyPrepRow():{item:"",memo:""};}
+function flattenGroups(){return state.draftGroups.flatMap(g=>(g.items||[]));}function sumRows(rows){return rows.reduce((s,r)=>s+Number(r.amount||0),0);}function getSortOrder(type){return{preparation:1,expense:2,schedule:3,memo:4}[type]||999;}function openModal(){document.getElementById("batchModal").classList.add("is-open");}function closeModal(){document.getElementById("batchModal").classList.remove("is-open");state.editingType=null;}function renderError(msg){document.getElementById("blockList").innerHTML=`<p class="error-state">${escapeHtml(msg||"エラー")}</p>`;}function getLineUserId(){return state.profile?.userId||"";}function getDisplayName(){return state.profile?.displayName||"unknown";}function setStatus(text,type){const el=document.getElementById("connectionStatus");el.textContent=text;el.className=`status-badge ${type||""}`;}function setText(id,text){const el=document.getElementById(id);if(el)el.textContent=text;}function formatCurrency(v){return new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(v||0));}function formatDateTime(v){if(!v)return"-";const d=new Date(v);return Number.isNaN(d.getTime())?v:new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(d);}function escapeHtml(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}function escapeAttr(v){return escapeHtml(v).replace(/`/g,"&#096;");}
