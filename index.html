@@ -11,25 +11,25 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">LINE LIFF Offkai Manager</p>
+        <p class="eyebrow">LINE LIFF Event Management</p>
         <h1>Event Hub</h1>
-        <p class="lead">オフ会の資料・準備物・経費・当日スケジュールをまとめて管理します。</p>
+        <p class="lead">オフ会の資料、準備物、経費、当日スケジュールをまとめて管理します。</p>
       </div>
       <div class="status-card">
-        <span id="connectionStatus" class="status-badge">起動中</span>
+        <span id="connectionStatus" class="status-badge loading">起動中</span>
         <small id="lastUpdated">最終更新: -</small>
       </div>
     </header>
 
     <main>
-      <section class="summary-grid" aria-label="Dashboard summary">
+      <section class="summary-grid">
         <article class="summary-card"><span>オフ会名</span><strong id="eventName">-</strong></article>
         <article class="summary-card"><span>開催日</span><strong id="eventDate">-</strong></article>
         <article class="summary-card"><span>会場</span><strong id="venue">-</strong></article>
         <article class="summary-card"><span>予定人数</span><strong id="expectedGuests">-</strong></article>
       </section>
 
-      <section class="nav-grid" aria-label="Main categories">
+      <section class="nav-grid">
         <button class="nav-card" data-type="preparation"><span>準備物</span><strong id="preparationCount">0件</strong><small>レンタル品・購入品・印刷物</small></button>
         <button class="nav-card" data-type="expense"><span>経費</span><strong id="expenseTotal">¥0</strong><small>会場費・飲食費・備品費</small></button>
         <button class="nav-card" data-type="schedule"><span>スケジュール</span><strong id="scheduleCount">0件</strong><small>受付・開始・片付け</small></button>
@@ -38,13 +38,17 @@
 
       <section class="panel">
         <div class="panel-header">
-          <h2>ダッシュボード概要</h2>
+          <div>
+            <h2 id="panelTitle">ダッシュボード概要</h2>
+            <p id="panelDescription">各カテゴリの概要を表示しています。</p>
+          </div>
           <button id="reloadButton" class="secondary-button">再読み込み</button>
         </div>
         <div id="blockList" class="block-list"></div>
       </section>
     </main>
   </div>
+
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
