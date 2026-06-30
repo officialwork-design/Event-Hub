@@ -3,10 +3,7 @@ function getBlocks_(params) {
   const eventId = params.eventId || getProperty_("EVENT_ID", "OFFMEETING_001");
   const blockType = params.blockType || "";
 
-  return {
-    success: true,
-    blocks: getBlockRows_(ss, eventId, blockType)
-  };
+  return { success: true, blocks: getBlockRows_(ss, eventId, blockType) };
 }
 
 function getBlockRows_(ss, eventId, blockType) {
@@ -23,10 +20,7 @@ function getBlockRows_(ss, eventId, blockType) {
     rows.push(row);
   }
 
-  rows.sort(function(a, b) {
-    return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
-  });
-
+  rows.sort(function(a, b) { return Number(a.sortOrder || 0) - Number(b.sortOrder || 0); });
   return rows;
 }
 
@@ -41,7 +35,7 @@ function createBlock_(params) {
     params.eventId || getProperty_("EVENT_ID", "OFFMEETING_001"),
     params.blockType || "memo",
     params.blockTitle || "無題",
-    params.blockContent || "",
+    params.blockContent || "[]",
     Number(params.amount || 0),
     params.status || "未設定",
     params.assignedTo || "",
@@ -55,10 +49,7 @@ function createBlock_(params) {
   sheet.appendRow(row);
   appendHistory_(ss, row[1], blockId, "create", "", JSON.stringify(row), row[12]);
 
-  return {
-    success: true,
-    blockId: blockId
-  };
+  return { success: true, blockId: blockId };
 }
 
 function updateBlock_(params) {
@@ -75,6 +66,7 @@ function updateBlock_(params) {
     if (row.blockId === blockId) {
       const before = JSON.stringify(row);
       const updated = Object.assign(row, {
+        blockType: params.blockType !== undefined ? params.blockType : row.blockType,
         blockTitle: params.blockTitle !== undefined ? params.blockTitle : row.blockTitle,
         blockContent: params.blockContent !== undefined ? params.blockContent : row.blockContent,
         amount: params.amount !== undefined ? Number(params.amount) : row.amount,
@@ -89,10 +81,7 @@ function updateBlock_(params) {
       sheet.getRange(i + 1, 1, 1, headers.length).setValues([newRow]);
       appendHistory_(ss, updated.eventId, blockId, "update", before, JSON.stringify(updated), updated.updatedBy);
 
-      return {
-        success: true,
-        blockId: blockId
-      };
+      return { success: true, blockId: blockId };
     }
   }
 
@@ -120,10 +109,7 @@ function deleteBlock_(params) {
       sheet.getRange(i + 1, 1, 1, headers.length).setValues([newRow]);
       appendHistory_(ss, row.eventId, blockId, "delete", before, JSON.stringify(row), row.updatedBy);
 
-      return {
-        success: true,
-        blockId: blockId
-      };
+      return { success: true, blockId: blockId };
     }
   }
 

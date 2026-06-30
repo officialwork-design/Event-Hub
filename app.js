@@ -1,28 +1,285 @@
-const state={liffReady:false,profile:null,remoteConfig:{appName:"Event Hub",eventId:"OFFMEETING_001",liffId:""},dashboard:null,activeFilter:null,currentBlock:null,expenseDraft:[]};
-document.addEventListener("DOMContentLoaded",async()=>{ensureModalRoot();bindEvents();await boot();});
-function bindEvents(){const r=document.getElementById("reloadButton");if(r)r.addEventListener("click",async()=>{await loadDashboard();});const c=document.getElementById("createButton");if(c)c.addEventListener("click",()=>state.activeFilter==="expense"?openExpenseEditor():openGenericEditor(null));document.querySelectorAll(".nav-card").forEach(b=>{b.addEventListener("click",()=>{const t=b.dataset.type;state.activeFilter=state.activeFilter===t?null:t;renderCurrentBlocks();});});}
-async function boot(){setStatus("起動中","loading");try{state.remoteConfig=await loadRemoteConfig();await initLiffIfPossible();await loadDashboard();setStatus("接続OK","success");}catch(e){console.error(e);setStatus("接続エラー","error");renderError(e.message||"初期化に失敗しました。");}}
-async function loadRemoteConfig(){if(!CONFIG.GAS_WEB_APP_URL)throw new Error("config.jsにGAS_WEB_APP_URLが設定されていません。");const r=await fetch(buildGasUrl("getConfig"));const d=await r.json();if(!d.success)throw new Error(d.message||"設定取得に失敗しました。");return d;}
-async function initLiffIfPossible(){const id=state.remoteConfig?.liffId||"";if(!id||typeof liff==="undefined")return;await liff.init({liffId:id});state.liffReady=true;if(liff.isLoggedIn())state.profile=await liff.getProfile();}
-async function loadDashboard(){setStatus("読込中","loading");const r=await fetch(buildGasUrl("getDashboard",{eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId()}));const d=await r.json();if(!d.success)throw new Error(d.message||"ダッシュボード取得に失敗しました。");state.dashboard=d;renderDashboard(d);setStatus("接続OK","success");}
-function buildGasUrl(action,params={}){const u=new URL(CONFIG.GAS_WEB_APP_URL);u.searchParams.set("action",action);Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")u.searchParams.set(k,v);});return u.toString();}
-async function postGas(action,payload={}){const body=Object.assign({action,eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId(),updatedBy:getDisplayName()},payload);const r=await fetch(CONFIG.GAS_WEB_APP_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});const d=await r.json();if(!d.success)throw new Error(d.message||"保存に失敗しました。");return d;}
-function renderDashboard(d){const b=d.dashboard||{},s=d.summary||{};setText("eventName",b.eventName||"-");setText("eventDate",b.eventDate||"-");setText("venue",b.venue||"-");setText("expectedGuests",b.expectedGuests||"-");setText("lastUpdated","最終更新: "+formatDateTime(b.lastUpdatedAt));setText("preparationCount",`${s.preparationCount||0}件`);setText("expenseTotal",formatCurrency(getExpenseTotal()));setText("scheduleCount",`${s.scheduleCount||0}件`);setText("memoCount",`${s.memoCount||0}件`);renderCurrentBlocks();}
-function renderCurrentBlocks(){if(!state.dashboard)return;const bs=state.dashboard.blocks||[];const m={preparation:"準備物",expense:"経費",schedule:"スケジュール",memo:"メモ"};setText("panelTitle",state.activeFilter?`${m[state.activeFilter]||"カテゴリ"}一覧`:"ダッシュボード概要");setText("panelDescription",state.activeFilter?"選択したカテゴリのみ表示しています。":"各カテゴリの概要を表示しています。");if(state.activeFilter==="expense"){renderExpenseBlock();return;}const fs=state.activeFilter?bs.filter(b=>b.blockType===state.activeFilter):bs;renderBlocks(fs);}
-function renderBlocks(bs){const c=document.getElementById("blockList");if(!c)return;if(!bs.length){c.innerHTML='<p class="empty-state">表示できるブロックがありません。</p>';return;}c.innerHTML=bs.map(b=>`<article class="block-card" data-block-id="${escapeHtml(b.blockId||"")}"><div class="block-card-header"><span class="block-type">${labelBlockType(b.blockType)}</span><span class="block-status">${escapeHtml(b.status||"未設定")}</span></div><h3>${escapeHtml(b.blockTitle||"無題")}</h3><p>${escapeHtml(b.blockContent||"").replace(/\n/g,"<br>")}</p>${Number(b.amount||0)>0?`<small class="amount">${formatCurrency(b.amount)}</small>`:""}</article>`).join("");c.querySelectorAll(".block-card").forEach(card=>card.addEventListener("click",()=>openGenericEditor((state.dashboard.blocks||[]).find(x=>x.blockId===card.dataset.blockId))));}
-function getExpenseBlock(){return(state.dashboard?.blocks||[]).find(b=>b.blockType==="expense")||null;}
-function parseExpenseRows(block){if(!block)return[];try{const rows=JSON.parse(block.blockContent||"[]");return Array.isArray(rows)?rows:[];}catch(e){return block.blockContent?[{title:block.blockTitle||"経費",amount:Number(block.amount||0),memo:block.blockContent}]:[];}}
-function getExpenseTotal(){return parseExpenseRows(getExpenseBlock()).reduce((s,r)=>s+Number(r.amount||0),0);}
-function renderExpenseBlock(){const c=document.getElementById("blockList");const block=getExpenseBlock();const rows=parseExpenseRows(block);const total=rows.reduce((s,r)=>s+Number(r.amount||0),0);if(!c)return;c.innerHTML=`<article class="block-card"><div class="block-card-header"><span class="block-type">経費</span><span class="block-status">${escapeHtml(block?.status||"一括管理")}</span></div><h3>経費ブロック</h3><p>この経費は全体をまとめて編集し、「経費を更新」を押した時だけ保存されます。</p><div class="expense-table">${rows.length?rows.map(r=>`<div class="expense-view-row"><strong>${escapeHtml(r.title||"")}</strong><span>${formatCurrency(r.amount||0)}</span><small>${escapeHtml(r.memo||"")}</small></div>`).join(""):'<p class="empty-state">経費項目がありません。</p>'}</div><small class="amount">合計 ${formatCurrency(total)}</small><div class="panel-actions" style="margin-top:14px"><button class="primary-button" id="editExpenseButton">経費を編集</button><button class="danger-button" id="deleteExpenseButton">経費全体を削除</button></div></article>`;document.getElementById("editExpenseButton").addEventListener("click",openExpenseEditor);document.getElementById("deleteExpenseButton").addEventListener("click",deleteExpenseBlock);}
-function openExpenseEditor(){const block=getExpenseBlock();state.currentBlock=block;state.expenseDraft=parseExpenseRows(block);if(!state.expenseDraft.length)state.expenseDraft=[{title:"",amount:"",memo:""}];renderExpenseEditor();openModal();}
-function renderExpenseEditor(){const c=document.getElementById("modalContent");c.innerHTML=`<div class="modal-header"><h2>経費ブロック編集</h2><button class="icon-button" type="button" id="closeModalButton">×</button></div><p class="modal-note">行を追加・削除・編集しても、下の「経費を更新」を押すまで保存されません。</p><div id="expenseRows"></div><div class="panel-actions"><button class="secondary-button" id="addExpenseRow">行を追加</button><strong id="expenseDraftTotal"></strong></div><div class="modal-actions"><button class="secondary-button" id="cancelExpense">キャンセル</button><button class="primary-button" id="saveExpense">経費を更新</button></div>`;document.getElementById("closeModalButton").addEventListener("click",closeModal);document.getElementById("cancelExpense").addEventListener("click",closeModal);document.getElementById("addExpenseRow").addEventListener("click",()=>{state.expenseDraft.push({title:"",amount:"",memo:""});renderExpenseRows();});document.getElementById("saveExpense").addEventListener("click",saveExpenseBlock);renderExpenseRows();}
-function renderExpenseRows(){const wrap=document.getElementById("expenseRows");if(!wrap)return;wrap.innerHTML=state.expenseDraft.map((r,i)=>`<div class="expense-edit-row"><input data-expense-field="title" data-index="${i}" placeholder="項目名" value="${escapeAttr(r.title||"")}"><input data-expense-field="amount" data-index="${i}" type="number" min="0" step="1" placeholder="金額" value="${escapeAttr(r.amount||"")}"><input data-expense-field="memo" data-index="${i}" placeholder="メモ" value="${escapeAttr(r.memo||"")}"><button class="danger-button" type="button" data-delete-expense="${i}">削除</button></div>`).join("");wrap.querySelectorAll("input").forEach(input=>input.addEventListener("input",e=>{const i=Number(e.target.dataset.index);const f=e.target.dataset.expenseField;state.expenseDraft[i][f]=e.target.value;updateExpenseDraftTotal();}));wrap.querySelectorAll("[data-delete-expense]").forEach(btn=>btn.addEventListener("click",e=>{state.expenseDraft.splice(Number(e.target.dataset.deleteExpense),1);renderExpenseRows();}));updateExpenseDraftTotal();}
-function updateExpenseDraftTotal(){const t=state.expenseDraft.reduce((s,r)=>s+Number(r.amount||0),0);setText("expenseDraftTotal","合計 "+formatCurrency(t));}
-async function saveExpenseBlock(){const rows=state.expenseDraft.filter(r=>(r.title||"").trim()||Number(r.amount||0)>0||(r.memo||"").trim());const total=rows.reduce((s,r)=>s+Number(r.amount||0),0);setStatus("経費保存中","loading");try{if(state.currentBlock?.blockId){await postGas("updateBlock",{blockId:state.currentBlock.blockId,blockType:"expense",blockTitle:"経費",blockContent:JSON.stringify(rows),amount:total,status:"更新済み"});}else{await postGas("createBlock",{blockType:"expense",blockTitle:"経費",blockContent:JSON.stringify(rows),amount:total,status:"更新済み",sortOrder:2});}closeModal();await loadDashboard();}catch(e){alert(e.message);setStatus("保存エラー","error");}}
-async function deleteExpenseBlock(){const block=getExpenseBlock();if(!block?.blockId){alert("削除できる経費ブロックがありません。");return;}if(!confirm("経費ブロック全体を削除しますか？"))return;setStatus("削除中","loading");try{await postGas("deleteBlock",{blockId:block.blockId});await loadDashboard();}catch(e){alert(e.message);setStatus("削除エラー","error");}}
-function openGenericEditor(block){alert("このカテゴリの編集UIは次の実装対象です。現在は経費ブロック編集を優先しています。");}
-function ensureModalRoot(){if(document.getElementById("dynamicModal"))return;const div=document.createElement("div");div.id="dynamicModal";div.className="modal";div.innerHTML='<div class="modal-backdrop" id="dynamicModalBackdrop"></div><section class="modal-panel"><div id="modalContent"></div></section>';document.body.appendChild(div);document.getElementById("dynamicModalBackdrop").addEventListener("click",closeModal);}
-function openModal(){document.getElementById("dynamicModal").classList.add("is-open");}
-function closeModal(){document.getElementById("dynamicModal").classList.remove("is-open");state.expenseDraft=[];}
-function renderError(m){const c=document.getElementById("blockList");if(c)c.innerHTML=`<p class="error-state">${escapeHtml(m)}</p>`;}
-function getLineUserId(){return state.profile?.userId||"";}function getDisplayName(){return state.profile?.displayName||"unknown";}function setStatus(t,type){const e=document.getElementById("connectionStatus");if(!e)return;e.textContent=t;e.className=`status-badge ${type||""}`;}function setText(id,t){const e=document.getElementById(id);if(e)e.textContent=t;}function labelBlockType(t){return{preparation:"準備物",expense:"経費",schedule:"スケジュール",memo:"メモ",task:"タスク",link:"リンク",other:"その他"}[t]||"その他";}function formatCurrency(v){return new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(v||0));}function formatDateTime(v){if(!v)return"-";const d=new Date(v);if(Number.isNaN(d.getTime()))return v;return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(d);}function escapeHtml(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}function escapeAttr(v){return escapeHtml(v).replace(/`/g,"&#096;");}
+const CATEGORY_META={
+  preparation:{label:"準備物",title:"準備物",amount:false,placeholder:"例：机、椅子、印刷物"},
+  expense:{label:"経費",title:"経費",amount:true,placeholder:"例：会場費、飲食費、備品費"},
+  schedule:{label:"スケジュール",title:"スケジュール",amount:false,placeholder:"例：受付、開始、撤収"},
+  memo:{label:"メモ",title:"メモ",amount:false,placeholder:"例：注意事項、連絡事項"}
+};
+const state={liffReady:false,profile:null,remoteConfig:{appName:"Event Hub",eventId:"OFFMEETING_001",liffId:""},dashboard:null,activeFilter:"preparation",editingType:null,draftRows:[]};
+
+document.addEventListener("DOMContentLoaded",async()=>{bindEvents();await boot();});
+
+function bindEvents(){
+  const reloadButton=document.getElementById("reloadButton");
+  if(reloadButton) reloadButton.addEventListener("click",async()=>{await loadDashboard();});
+
+  const editButton=document.getElementById("editCurrentButton");
+  if(editButton) editButton.addEventListener("click",()=>openBatchEditor(state.activeFilter||"preparation"));
+
+  document.querySelectorAll(".nav-card").forEach(button=>{
+    button.addEventListener("click",()=>{
+      state.activeFilter=button.dataset.type;
+      renderCurrentCategory();
+    });
+  });
+
+  document.querySelectorAll("[data-close-modal]").forEach(el=>el.addEventListener("click",closeModal));
+
+  document.getElementById("addRowButton").addEventListener("click",()=>{state.draftRows.push(createEmptyRow());renderDraftRows();});
+  document.getElementById("saveCategoryButton").addEventListener("click",saveCurrentCategory);
+  document.getElementById("deleteCategoryButton").addEventListener("click",deleteCurrentCategory);
+}
+
+async function boot(){
+  setStatus("起動中","loading");
+  try{
+    state.remoteConfig=await loadRemoteConfig();
+    await initLiffIfPossible();
+    await loadDashboard();
+    setStatus("接続OK","success");
+  }catch(error){
+    console.error(error);
+    setStatus("接続エラー","error");
+    renderError(error.message||"初期化に失敗しました。");
+  }
+}
+
+async function loadRemoteConfig(){
+  if(!CONFIG.GAS_WEB_APP_URL) throw new Error("config.jsにGAS_WEB_APP_URLが設定されていません。");
+  const response=await fetch(buildGasUrl("getConfig"));
+  const data=await response.json();
+  if(!data.success) throw new Error(data.message||"設定取得に失敗しました。");
+  return data;
+}
+
+async function initLiffIfPossible(){
+  const liffId=state.remoteConfig?.liffId||"";
+  if(!liffId||typeof liff==="undefined") return;
+  await liff.init({liffId});
+  state.liffReady=true;
+  if(liff.isLoggedIn()) state.profile=await liff.getProfile();
+}
+
+async function loadDashboard(){
+  setStatus("読込中","loading");
+  const response=await fetch(buildGasUrl("getDashboard",{eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId()}));
+  const data=await response.json();
+  if(!data.success) throw new Error(data.message||"ダッシュボード取得に失敗しました。");
+  state.dashboard=data;
+  renderDashboard(data);
+  setStatus("接続OK","success");
+}
+
+function buildGasUrl(action,params={}){
+  const url=new URL(CONFIG.GAS_WEB_APP_URL);
+  url.searchParams.set("action",action);
+  Object.entries(params).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,value);});
+  return url.toString();
+}
+
+async function postGas(action,payload={}){
+  const body=Object.assign({action,eventId:state.remoteConfig.eventId||"OFFMEETING_001",lineUserId:getLineUserId(),updatedBy:getDisplayName()},payload);
+  const response=await fetch(CONFIG.GAS_WEB_APP_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
+  const data=await response.json();
+  if(!data.success) throw new Error(data.message||"保存に失敗しました。");
+  return data;
+}
+
+function renderDashboard(data){
+  const dashboard=data.dashboard||{};
+  setText("eventName",dashboard.eventName||"-");
+  setText("eventDate",dashboard.eventDate||"-");
+  setText("venue",dashboard.venue||"-");
+  setText("expectedGuests",dashboard.expectedGuests||"-");
+  setText("lastUpdated","最終更新: "+formatDateTime(dashboard.lastUpdatedAt));
+
+  setText("preparationCount",`${parseRowsByType("preparation").length}件`);
+  setText("expenseTotal",formatCurrency(sumRows(parseRowsByType("expense"))));
+  setText("scheduleCount",`${parseRowsByType("schedule").length}件`);
+  setText("memoCount",`${parseRowsByType("memo").length}件`);
+
+  renderCurrentCategory();
+}
+
+function renderCurrentCategory(){
+  const type=state.activeFilter||"preparation";
+  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
+
+  document.querySelectorAll(".nav-card").forEach(btn=>btn.classList.toggle("is-active",btn.dataset.type===type));
+
+  setText("panelTitle",`${meta.label}一覧`);
+  setText("panelDescription",`${meta.label}はカテゴリ全体をまとめて編集し、「${meta.label}を更新」を押した時だけ保存されます。`);
+
+  const rows=parseRowsByType(type);
+  const block=getBlockByType(type);
+  const container=document.getElementById("blockList");
+  if(!container) return;
+
+  const total=meta.amount?`<small class="amount">合計 ${formatCurrency(sumRows(rows))}</small>`:"";
+  const list=rows.length
+    ? `<div class="item-list">${rows.map(row=>renderViewRow(row,meta)).join("")}</div>`
+    : `<p class="empty-state">${meta.label}項目がありません。「選択カテゴリを編集」から追加してください。</p>`;
+
+  container.innerHTML=`<article class="category-card">
+    <div class="category-card-header">
+      <span class="block-type">${meta.label}</span>
+      <span class="block-status">${escapeHtml(block?.status||"一括管理")}</span>
+    </div>
+    <h3>${meta.label}ブロック</h3>
+    <p>このカテゴリは1行ずつ即保存せず、まとめて編集してから更新します。</p>
+    ${list}
+    ${total}
+    <div class="panel-actions" style="margin-top:14px">
+      <button class="primary-button" id="openBatchEditorButton">${meta.label}を編集</button>
+      <button class="danger-button" id="deleteBatchButton">${meta.label}全体を削除</button>
+    </div>
+  </article>`;
+
+  document.getElementById("openBatchEditorButton").addEventListener("click",()=>openBatchEditor(type));
+  document.getElementById("deleteBatchButton").addEventListener("click",()=>deleteCategory(type));
+}
+
+function renderViewRow(row,meta){
+  const amount=meta.amount?`<span>${formatCurrency(row.amount||0)}</span>`:"<span></span>";
+  return `<div class="item-row">
+    <strong>${escapeHtml(row.title||"")}</strong>
+    ${amount}
+    <small>${escapeHtml(row.memo||"")}</small>
+  </div>`;
+}
+
+function openBatchEditor(type){
+  state.editingType=type;
+  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
+  state.draftRows=parseRowsByType(type).map(row=>({title:row.title||"",amount:row.amount||"",memo:row.memo||""}));
+  if(!state.draftRows.length) state.draftRows=[createEmptyRow()];
+
+  setText("modalTitle",`${meta.label}ブロック編集`);
+  setText("modalDescription",`追加・削除・変更はまだ保存されません。「${meta.label}を更新」を押した時だけ保存されます。`);
+  setText("saveCategoryButton",`${meta.label}を更新`);
+  setText("deleteCategoryButton",`${meta.label}全体を削除`);
+
+  renderDraftRows();
+  openModal();
+}
+
+function renderDraftRows(){
+  const container=document.getElementById("batchRows");
+  if(!container) return;
+
+  const type=state.editingType;
+  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
+  container.innerHTML=state.draftRows.map((row,index)=>`
+    <div class="batch-row">
+      <input data-field="title" data-index="${index}" placeholder="${meta.placeholder}" value="${escapeAttr(row.title||"")}">
+      <input data-field="amount" data-index="${index}" type="number" min="0" step="1" placeholder="金額" value="${escapeAttr(row.amount||"")}" ${meta.amount?"":"disabled"}>
+      <textarea data-field="memo" data-index="${index}" placeholder="メモ・詳細">${escapeHtml(row.memo||"")}</textarea>
+      <button type="button" class="danger-button" data-delete-row="${index}">削除</button>
+    </div>
+  `).join("");
+
+  container.querySelectorAll("input,textarea").forEach(input=>{
+    input.addEventListener("input",event=>{
+      const index=Number(event.target.dataset.index);
+      const field=event.target.dataset.field;
+      state.draftRows[index][field]=event.target.value;
+      updateDraftTotal();
+    });
+  });
+
+  container.querySelectorAll("[data-delete-row]").forEach(button=>{
+    button.addEventListener("click",event=>{
+      state.draftRows.splice(Number(event.target.dataset.deleteRow),1);
+      if(!state.draftRows.length) state.draftRows=[createEmptyRow()];
+      renderDraftRows();
+    });
+  });
+
+  updateDraftTotal();
+}
+
+function updateDraftTotal(){
+  const meta=CATEGORY_META[state.editingType]||CATEGORY_META.memo;
+  const total=sumRows(state.draftRows);
+  setText("batchTotal",meta.amount?`合計 ${formatCurrency(total)}`:`${state.draftRows.filter(isMeaningfulRow).length}件`);
+}
+
+async function saveCurrentCategory(){
+  const type=state.editingType;
+  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
+  const block=getBlockByType(type);
+  const rows=state.draftRows.filter(isMeaningfulRow).map(row=>({title:(row.title||"").trim(),amount:Number(row.amount||0),memo:(row.memo||"").trim()}));
+  const total=sumRows(rows);
+
+  setStatus(`${meta.label}保存中`,"loading");
+  try{
+    const payload={blockType:type,blockTitle:meta.title,blockContent:JSON.stringify(rows),amount:meta.amount?total:0,status:"更新済み",sortOrder:getSortOrder(type)};
+    if(block?.blockId){
+      await postGas("updateBlock",Object.assign({blockId:block.blockId},payload));
+    }else{
+      await postGas("createBlock",payload);
+    }
+    closeModal();
+    await loadDashboard();
+  }catch(error){
+    alert(error.message);
+    setStatus("保存エラー","error");
+  }
+}
+
+async function deleteCurrentCategory(){
+  if(!state.editingType) return;
+  await deleteCategory(state.editingType);
+}
+
+async function deleteCategory(type){
+  const meta=CATEGORY_META[type]||CATEGORY_META.memo;
+  const block=getBlockByType(type);
+  if(!block?.blockId){
+    alert(`削除できる${meta.label}ブロックがありません。`);
+    return;
+  }
+  if(!confirm(`${meta.label}ブロック全体を削除しますか？`)) return;
+
+  setStatus(`${meta.label}削除中`,"loading");
+  try{
+    await postGas("deleteBlock",{blockId:block.blockId});
+    closeModal();
+    await loadDashboard();
+  }catch(error){
+    alert(error.message);
+    setStatus("削除エラー","error");
+  }
+}
+
+function getBlockByType(type){return(state.dashboard?.blocks||[]).find(block=>block.blockType===type)||null;}
+
+function parseRowsByType(type){
+  const block=getBlockByType(type);
+  if(!block) return [];
+  try{
+    const parsed=JSON.parse(block.blockContent||"[]");
+    if(Array.isArray(parsed)) return parsed;
+  }catch(error){}
+  if(block.blockContent){
+    return block.blockContent.split(/\n+/).filter(Boolean).map(text=>({title:text,amount:Number(block.amount||0),memo:""}));
+  }
+  return [];
+}
+
+function createEmptyRow(){return{title:"",amount:"",memo:""};}
+function isMeaningfulRow(row){return(row.title||"").trim()||Number(row.amount||0)>0||(row.memo||"").trim();}
+function sumRows(rows){return rows.reduce((sum,row)=>sum+Number(row.amount||0),0);}
+function getSortOrder(type){return{preparation:1,expense:2,schedule:3,memo:4}[type]||999;}
+
+function openModal(){const modal=document.getElementById("batchModal");modal.classList.add("is-open");modal.setAttribute("aria-hidden","false");}
+function closeModal(){const modal=document.getElementById("batchModal");modal.classList.remove("is-open");modal.setAttribute("aria-hidden","true");state.editingType=null;state.draftRows=[];}
+
+function renderError(message){const container=document.getElementById("blockList");if(container) container.innerHTML=`<p class="error-state">${escapeHtml(message)}</p>`;}
+function getLineUserId(){return state.profile?.userId||"";}
+function getDisplayName(){return state.profile?.displayName||"unknown";}
+function setStatus(text,type){const element=document.getElementById("connectionStatus");if(!element)return;element.textContent=text;element.className=`status-badge ${type||""}`;}
+function setText(id,text){const element=document.getElementById(id);if(element) element.textContent=text;}
+function formatCurrency(value){return new Intl.NumberFormat("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0}).format(Number(value||0));}
+function formatDateTime(value){if(!value)return"-";const date=new Date(value);if(Number.isNaN(date.getTime()))return value;return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(date);}
+function escapeHtml(value){return String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
+function escapeAttr(value){return escapeHtml(value).replace(/`/g,"&#096;");}

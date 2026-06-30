@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Event Hub</title>
-  <link rel="stylesheet" href="style.css?v=20260630-2" />
+  <link rel="stylesheet" href="style.css?v=20260701-1" />
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
@@ -30,9 +30,9 @@
       </section>
 
       <section class="nav-grid">
-        <button class="nav-card" data-type="preparation"><span>準備物</span><strong id="preparationCount">0件</strong><small>レンタル品・購入品・印刷物</small></button>
-        <button class="nav-card" data-type="expense"><span>経費</span><strong id="expenseTotal">¥0</strong><small>会場費・飲食費・備品費</small></button>
-        <button class="nav-card" data-type="schedule"><span>スケジュール</span><strong id="scheduleCount">0件</strong><small>受付・開始・片付け</small></button>
+        <button class="nav-card" data-type="preparation"><span>準備物</span><strong id="preparationCount">0件</strong><small>まとめて編集・更新</small></button>
+        <button class="nav-card" data-type="expense"><span>経費</span><strong id="expenseTotal">¥0</strong><small>合計金額を自動集計</small></button>
+        <button class="nav-card" data-type="schedule"><span>スケジュール</span><strong id="scheduleCount">0件</strong><small>当日の流れを一括管理</small></button>
         <button class="nav-card" data-type="memo"><span>メモ</span><strong id="memoCount">0件</strong><small>注意事項・連絡事項</small></button>
       </section>
 
@@ -40,10 +40,10 @@
         <div class="panel-header">
           <div>
             <h2 id="panelTitle">ダッシュボード概要</h2>
-            <p id="panelDescription">各カテゴリの概要を表示しています。</p>
+            <p id="panelDescription">カテゴリを選択すると、まとめて編集できます。</p>
           </div>
           <div class="panel-actions">
-            <button id="createButton" class="primary-button">新規作成</button>
+            <button id="editCurrentButton" class="primary-button">選択カテゴリを編集</button>
             <button id="reloadButton" class="secondary-button">再読み込み</button>
           </div>
         </div>
@@ -52,7 +52,35 @@
     </main>
   </div>
 
-  <script src="config.js?v=20260630-2"></script>
-  <script src="app.js?v=20260630-2"></script>
+  <div id="batchModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-panel" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle">カテゴリ編集</h2>
+          <p id="modalDescription">更新ボタンを押すまで保存されません。</p>
+        </div>
+        <button class="icon-button" type="button" data-close-modal>×</button>
+      </div>
+
+      <div id="batchRows" class="batch-rows"></div>
+
+      <div class="batch-footer">
+        <button id="addRowButton" class="secondary-button" type="button">行を追加</button>
+        <strong id="batchTotal"></strong>
+      </div>
+
+      <div class="modal-actions">
+        <button id="deleteCategoryButton" class="danger-button" type="button">カテゴリ全体を削除</button>
+        <div class="modal-actions-right">
+          <button class="secondary-button" type="button" data-close-modal>キャンセル</button>
+          <button id="saveCategoryButton" class="primary-button" type="button">更新</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="config.js?v=20260701-1"></script>
+  <script src="app.js?v=20260701-1"></script>
 </body>
 </html>

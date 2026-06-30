@@ -6,18 +6,13 @@ function getDashboard_(params) {
   const blocks = getBlockRows_(ss, eventId, "");
 
   const summary = {
-    preparationCount: blocks.filter(function(b) { return b.blockType === "preparation"; }).length,
+    preparationCount: countRowsByType_(blocks, "preparation"),
     expenseTotal: blocks.filter(function(b) { return b.blockType === "expense"; }).reduce(function(sum, b) { return sum + Number(b.amount || 0); }, 0),
-    scheduleCount: blocks.filter(function(b) { return b.blockType === "schedule"; }).length,
-    memoCount: blocks.filter(function(b) { return b.blockType === "memo"; }).length
+    scheduleCount: countRowsByType_(blocks, "schedule"),
+    memoCount: countRowsByType_(blocks, "memo")
   };
 
-  return {
-    success: true,
-    dashboard: dashboard,
-    summary: summary,
-    blocks: blocks
-  };
+  return { success: true, dashboard: dashboard, summary: summary, blocks: blocks };
 }
 
 function getDashboardRow_(ss, eventId) {
@@ -40,4 +35,15 @@ function getDashboardRow_(ss, eventId) {
     lastUpdatedAt: new Date().toISOString(),
     lastUpdatedBy: "system"
   };
+}
+
+function countRowsByType_(blocks, type) {
+  const block = blocks.find(function(b) { return b.blockType === type; });
+  if (!block) return 0;
+  try {
+    const rows = JSON.parse(block.blockContent || "[]");
+    return Array.isArray(rows) ? rows.length : 0;
+  } catch (error) {
+    return block.blockContent ? 1 : 0;
+  }
 }

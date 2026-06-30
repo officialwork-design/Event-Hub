@@ -20,15 +20,8 @@ function handleRequest_(e) {
     if (action === "updateBlock") return jsonResponse_(updateBlock_(params));
     if (action === "deleteBlock") return jsonResponse_(deleteBlock_(params));
 
-    return jsonResponse_({
-      success: false,
-      message: "Unknown action: " + action
-    });
+    return jsonResponse_({ success: false, message: "Unknown action: " + action });
   } catch (error) {
-    return jsonResponse_({
-      success: false,
-      message: error.message,
-      stack: error.stack
-    });
+    return jsonResponse_({ success: false, message: error.message, stack: error.stack });
   }
 }
