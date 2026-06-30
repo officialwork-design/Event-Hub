@@ -4,11 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Event Hub</title>
-  <link rel="stylesheet" href="style.css?v=20260630-section-layout" />
+  <link rel="stylesheet" href="style.css?v=20260701-login-1" />
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <div class="app-shell">
+  <section id="loginView" class="login-view">
+    <div class="login-card">
+      <p class="eyebrow">Event Hub</p>
+      <h1>管理画面ログイン</h1>
+      <p class="login-lead">管理番号またはイベントコードを入力してください。</p>
+      <label class="login-label">管理番号 / イベントコード
+        <input id="loginCodeInput" type="text" placeholder="例：1 / SHINJUKU" autocomplete="off" />
+      </label>
+      <button id="loginButton" class="primary-button">ログイン</button>
+      <p id="loginError" class="login-error"></p>
+    </div>
+  </section>
+
+  <div id="appView" class="app-shell is-hidden">
     <header class="app-header">
       <div>
         <p class="eyebrow">LINE LIFF Event Management</p>
@@ -17,6 +30,10 @@
       <div class="status-card">
         <span id="connectionStatus" class="status-badge loading">起動中</span>
         <small id="lastUpdated">最終更新: -</small>
+        <div class="login-user">
+          <strong id="currentEventName">-</strong>
+          <button id="logoutButton" class="mini-button" type="button">ログアウト</button>
+        </div>
       </div>
     </header>
 
@@ -38,15 +55,13 @@
       <section class="panel">
         <div class="panel-header">
           <div>
-            <div class="panel-title-row">
-              <h2 id="panelTitle">準備物</h2>
-              <div class="panel-title-actions">
-                <button id="editCurrentButton" class="primary-button">編集</button>
-                <button id="deleteCurrentButton" class="danger-button">削除</button>
-                <button id="reloadButton" class="secondary-button">再読み込み</button>
-              </div>
-            </div>
+            <h2 id="panelTitle">準備物</h2>
             <p id="panelDescription"></p>
+          </div>
+          <div class="panel-actions">
+            <button id="editCurrentButton" class="primary-button">編集</button>
+            <button id="deleteCurrentButton" class="danger-button">削除</button>
+            <button id="reloadButton" class="secondary-button">再読み込み</button>
           </div>
         </div>
         <div id="blockList" class="block-list"></div>
@@ -56,7 +71,7 @@
 
   <div id="batchModal" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close-modal></div>
-    <section class="modal-panel" role="dialog" aria-modal="true">
+    <section class="modal-panel">
       <div class="modal-header">
         <div>
           <h2 id="modalTitle">編集</h2>
@@ -64,27 +79,21 @@
         </div>
         <button class="icon-button" type="button" data-close-modal>×</button>
       </div>
-
       <div id="modeSwitch" class="mode-switch"></div>
       <div id="batchRows" class="batch-rows"></div>
-
       <div class="batch-footer">
         <button id="addRowButton" class="secondary-button" type="button">行を追加</button>
         <button id="addGroupButton" class="secondary-button" type="button">カテゴリ追加</button>
         <strong id="batchTotal"></strong>
       </div>
-
       <div class="modal-actions">
-        <button id="deleteCategoryButton" class="danger-button" type="button">削除</button>
-        <div class="modal-actions-right">
-          <button class="secondary-button" type="button" data-close-modal>キャンセル</button>
-          <button id="saveCategoryButton" class="primary-button" type="button">更新</button>
-        </div>
+        <button class="secondary-button" type="button" data-close-modal>キャンセル</button>
+        <button id="saveCategoryButton" class="primary-button" type="button">更新</button>
       </div>
     </section>
   </div>
 
-  <script src="config.js?v=20260630-section-layout"></script>
-  <script src="app.js?v=20260630-section-layout"></script>
+  <script src="config.js?v=20260701-login-1"></script>
+  <script src="app.js?v=20260701-login-1"></script>
 </body>
 </html>
