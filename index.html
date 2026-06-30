@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Event Hub</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260630-2" />
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
@@ -52,67 +52,7 @@
     </main>
   </div>
 
-  <div id="editorModal" class="modal" aria-hidden="true">
-    <div class="modal-backdrop" data-close-modal></div>
-    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
-      <div class="modal-header">
-        <h2 id="editorTitle">ブロック編集</h2>
-        <button class="icon-button" type="button" data-close-modal>×</button>
-      </div>
-
-      <form id="blockForm" class="editor-form">
-        <input type="hidden" id="blockId" />
-
-        <label>カテゴリ
-          <select id="blockType">
-            <option value="preparation">準備物</option>
-            <option value="expense">経費</option>
-            <option value="schedule">スケジュール</option>
-            <option value="memo">メモ</option>
-            <option value="task">タスク</option>
-            <option value="link">リンク</option>
-            <option value="other">その他</option>
-          </select>
-        </label>
-
-        <label>タイトル
-          <input type="text" id="blockTitle" placeholder="例：レンタル品" required />
-        </label>
-
-        <label>内容
-          <textarea id="blockContent" rows="8" placeholder="ひとくくりで編集する内容を入力"></textarea>
-        </label>
-
-        <div class="form-grid">
-          <label>金額
-            <input type="number" id="amount" min="0" step="1" />
-          </label>
-          <label>ステータス
-            <input type="text" id="status" placeholder="例：確認中" />
-          </label>
-        </div>
-
-        <div class="form-grid">
-          <label>担当
-            <input type="text" id="assignedTo" placeholder="例：Andre" />
-          </label>
-          <label>並び順
-            <input type="number" id="sortOrder" min="0" step="1" />
-          </label>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" id="deleteButton" class="danger-button">削除</button>
-          <div class="modal-actions-right">
-            <button type="button" class="secondary-button" data-close-modal>キャンセル</button>
-            <button type="submit" class="primary-button">保存</button>
-          </div>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=20260630-2"></script>
+  <script src="app.js?v=20260630-2"></script>
 </body>
 </html>
