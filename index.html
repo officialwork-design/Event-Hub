@@ -17,6 +17,7 @@
         <input id="loginCodeInput" type="text" placeholder="例：1 / SHINJUKU" autocomplete="off" />
       </label>
       <button id="loginButton" class="primary-button">ログイン</button>
+      <button id="createEventButton" class="secondary-button" type="button">＋ 新規イベント作成</button>
       <p id="loginError" class="login-error"></p>
     </div>
   </section>
@@ -101,5 +102,46 @@
   </script>
   <script src="config.js?v=20260701-ui-renewal-1"></script>
   <script src="app.js?v=20260701-ui-renewal-1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const createButton = document.getElementById('createEventButton');
+      const loginInput = document.getElementById('loginCodeInput');
+      const loginButton = document.getElementById('loginButton');
+      const loginError = document.getElementById('loginError');
+
+      if (!createButton) return;
+
+      createButton.addEventListener('click', async function () {
+        if (!window.CONFIG || !CONFIG.GAS_WEB_APP_URL) {
+          if (loginError) loginError.textContent = 'config.jsにGAS_WEB_APP_URLが設定されていません。';
+          return;
+        }
+
+        createButton.disabled = true;
+        createButton.textContent = '作成中...';
+        if (loginError) loginError.textContent = '';
+
+        try {
+          const url = new URL(CONFIG.GAS_WEB_APP_URL);
+          url.searchParams.set('action', 'createEventAuto');
+          const response = await fetch(url.toString());
+          const data = await response.json();
+
+          if (!data.success) throw new Error(data.message || 'イベント作成に失敗しました。');
+
+          alert('イベントを作成しました。\n\nログインIDは ' + data.code + ' です。');
+
+          if (loginInput) loginInput.value = data.code;
+          if (loginButton) loginButton.click();
+        } catch (error) {
+          console.error(error);
+          if (loginError) loginError.textContent = error.message || 'イベント作成に失敗しました。';
+        } finally {
+          createButton.disabled = false;
+          createButton.textContent = '＋ 新規イベント作成';
+        }
+      });
+    });
+  </script>
 </body>
 </html>
