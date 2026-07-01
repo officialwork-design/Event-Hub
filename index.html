@@ -112,7 +112,7 @@
       if (!createButton) return;
 
       createButton.addEventListener('click', async function () {
-        if (!window.CONFIG || !CONFIG.GAS_WEB_APP_URL) {
+        if (typeof CONFIG === 'undefined' || !CONFIG.GAS_WEB_APP_URL) {
           if (loginError) loginError.textContent = 'config.jsにGAS_WEB_APP_URLが設定されていません。';
           return;
         }
