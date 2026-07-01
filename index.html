@@ -99,24 +99,24 @@
       <div class="modal-header">
         <div>
           <h2>新規イベント作成</h2>
-          <p>イベント名を入力してください。ログインIDは自動で採番されます。</p>
+          <p>すべての項目を入力してください。ログインIDは自動で採番されます。</p>
         </div>
         <button class="icon-button" type="button" data-close-event-create>×</button>
       </div>
       <div class="event-create-form">
         <label class="login-label">イベント名
-          <input id="newEventNameInput" type="text" placeholder="例：新宿オフ会 No.3" autocomplete="off" />
+          <input id="newEventNameInput" type="text" placeholder="例：新宿オフ会 No.3" autocomplete="off" required />
         </label>
         <div class="event-create-grid">
           <label class="login-label">開催日
-            <input id="newEventDateInput" type="date" />
+            <input id="newEventDateInput" type="date" required />
           </label>
           <label class="login-label">予定人数
-            <input id="newExpectedGuestsInput" type="number" min="0" inputmode="numeric" placeholder="例：70" />
+            <input id="newExpectedGuestsInput" type="number" min="1" inputmode="numeric" placeholder="例：70" required />
           </label>
         </div>
         <label class="login-label">会場
-          <input id="newVenueInput" type="text" placeholder="例：グレイドパーク新宿駅前" autocomplete="off" />
+          <input id="newVenueInput" type="text" placeholder="例：グレイドパーク新宿駅前" autocomplete="off" required />
         </label>
         <p id="eventCreateMessage" class="event-create-message"></p>
       </div>
@@ -173,6 +173,11 @@
       const loginButton = document.getElementById('loginButton');
       const loginError = document.getElementById('loginError');
 
+      function showEventCreateError(message, targetInput) {
+        if (eventMessage) eventMessage.textContent = message;
+        if (targetInput) targetInput.focus();
+      }
+
       function openEventCreateModal() {
         if (eventMessage) eventMessage.textContent = '';
         if (eventNameInput) eventNameInput.value = '';
@@ -193,7 +198,7 @@
 
       async function createEventFromModal() {
         if (typeof CONFIG === 'undefined' || !CONFIG.GAS_WEB_APP_URL) {
-          if (eventMessage) eventMessage.textContent = 'config.jsにGAS_WEB_APP_URLが設定されていません。';
+          showEventCreateError('config.jsにGAS_WEB_APP_URLが設定されていません。', null);
           return;
         }
 
@@ -203,8 +208,19 @@
         const expectedGuests = expectedGuestsInput ? expectedGuestsInput.value.trim() : '';
 
         if (!eventName) {
-          if (eventMessage) eventMessage.textContent = 'イベント名を入力してください。';
-          if (eventNameInput) eventNameInput.focus();
+          showEventCreateError('イベント名を入力してください。', eventNameInput);
+          return;
+        }
+        if (!eventDate) {
+          showEventCreateError('開催日を入力してください。', eventDateInput);
+          return;
+        }
+        if (!expectedGuests || Number(expectedGuests) <= 0) {
+          showEventCreateError('予定人数を1以上で入力してください。', expectedGuestsInput);
+          return;
+        }
+        if (!venue) {
+          showEventCreateError('会場を入力してください。', venueInput);
           return;
         }
 
@@ -241,9 +257,6 @@
 
       if (createButton) createButton.addEventListener('click', openEventCreateModal);
       if (confirmButton) confirmButton.addEventListener('click', createEventFromModal);
-      if (eventNameInput) eventNameInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') createEventFromModal();
-      });
       document.querySelectorAll('[data-close-event-create]').forEach(function (el) {
         el.addEventListener('click', closeEventCreateModal);
       });
