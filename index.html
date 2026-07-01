@@ -14,11 +14,19 @@
     .event-create-form .login-label{
       margin:0;
     }
+    .event-create-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:var(--space-3);
+    }
     .event-create-message{
       min-height:20px;
       margin:0;
       color:var(--color-danger);
       font-weight:800;
+    }
+    @media(max-width:520px){
+      .event-create-grid{grid-template-columns:1fr;}
     }
   </style>
 </head>
@@ -99,6 +107,17 @@
         <label class="login-label">イベント名
           <input id="newEventNameInput" type="text" placeholder="例：新宿オフ会 No.3" autocomplete="off" />
         </label>
+        <div class="event-create-grid">
+          <label class="login-label">開催日
+            <input id="newEventDateInput" type="date" />
+          </label>
+          <label class="login-label">予定人数
+            <input id="newExpectedGuestsInput" type="number" min="0" inputmode="numeric" placeholder="例：70" />
+          </label>
+        </div>
+        <label class="login-label">会場
+          <input id="newVenueInput" type="text" placeholder="例：グレイドパーク新宿駅前" autocomplete="off" />
+        </label>
         <p id="eventCreateMessage" class="event-create-message"></p>
       </div>
       <div class="modal-actions">
@@ -146,6 +165,9 @@
       const confirmButton = document.getElementById('confirmCreateEventButton');
       const eventModal = document.getElementById('eventCreateModal');
       const eventNameInput = document.getElementById('newEventNameInput');
+      const eventDateInput = document.getElementById('newEventDateInput');
+      const venueInput = document.getElementById('newVenueInput');
+      const expectedGuestsInput = document.getElementById('newExpectedGuestsInput');
       const eventMessage = document.getElementById('eventCreateMessage');
       const loginInput = document.getElementById('loginCodeInput');
       const loginButton = document.getElementById('loginButton');
@@ -154,6 +176,9 @@
       function openEventCreateModal() {
         if (eventMessage) eventMessage.textContent = '';
         if (eventNameInput) eventNameInput.value = '';
+        if (eventDateInput) eventDateInput.value = '';
+        if (venueInput) venueInput.value = '';
+        if (expectedGuestsInput) expectedGuestsInput.value = '';
         eventModal.classList.add('is-open');
         eventModal.setAttribute('aria-hidden', 'false');
         setTimeout(function () {
@@ -173,6 +198,10 @@
         }
 
         const eventName = eventNameInput ? eventNameInput.value.trim() : '';
+        const eventDate = eventDateInput ? eventDateInput.value.trim() : '';
+        const venue = venueInput ? venueInput.value.trim() : '';
+        const expectedGuests = expectedGuestsInput ? expectedGuestsInput.value.trim() : '';
+
         if (!eventName) {
           if (eventMessage) eventMessage.textContent = 'イベント名を入力してください。';
           if (eventNameInput) eventNameInput.focus();
@@ -188,6 +217,9 @@
           const url = new URL(CONFIG.GAS_WEB_APP_URL);
           url.searchParams.set('action', 'createEventAuto');
           url.searchParams.set('eventName', eventName);
+          url.searchParams.set('eventDate', eventDate);
+          url.searchParams.set('venue', venue);
+          url.searchParams.set('expectedGuests', expectedGuests);
           const response = await fetch(url.toString());
           const data = await response.json();
 
