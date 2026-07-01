@@ -26,6 +26,9 @@ function createEventAuto_(params) {
   const eventName = String(params.eventName || '').trim();
   if (!eventName) return { success: false, message: 'イベント名を入力してください。' };
 
+  const eventDate = String(params.eventDate || '').trim() || '未設定';
+  const venue = String(params.venue || '').trim() || '未設定';
+  const expectedGuests = String(params.expectedGuests || '').trim() || '未設定';
   const ss = getSpreadsheet_();
   const eventsSheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
   const dashboardSheet = ss.getSheetByName(SHEET_NAMES.DASHBOARD);
@@ -46,7 +49,7 @@ function createEventAuto_(params) {
   const updatedBy = params.updatedBy || params.lineUserId || 'system';
 
   eventsSheet.appendRow([nextCode, eventId, eventName, true, 'auto', now]);
-  dashboardSheet.appendRow([eventId, eventName, '未設定', '未設定', '', '', '未設定', 'auto', now, updatedBy]);
+  dashboardSheet.appendRow([eventId, eventName, eventDate, venue, '', '', expectedGuests, 'auto', now, updatedBy]);
 
   const prefix = 'BLOCK_' + eventId + '_';
   const rows = [
@@ -63,6 +66,9 @@ function createEventAuto_(params) {
     code: nextCode,
     eventId: eventId,
     eventName: eventName,
+    eventDate: eventDate,
+    venue: venue,
+    expectedGuests: expectedGuests,
     message: 'イベントを作成しました。ログインIDは ' + nextCode + ' です。'
   };
 }
