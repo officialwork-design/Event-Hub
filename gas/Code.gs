@@ -15,6 +15,7 @@ function handleRequest_(e) {
     if (action === 'setup') return jsonResponse_(setupEventHub());
     if (action === 'getConfig') return jsonResponse_(getConfig_());
     if (action === 'loginEvent') return jsonResponse_(loginEvent_(params));
+    if (action === 'createEventAuto') return jsonResponse_(createEventAuto_(params));
     if (action === 'getEvents') return jsonResponse_(getEvents_(params));
     if (action === 'getDashboard') return jsonResponse_(getDashboard_(params));
     if (action === 'getBlocks') return jsonResponse_(getBlocks_(params));
