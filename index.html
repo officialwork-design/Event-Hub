@@ -6,6 +6,21 @@
   <title>Event Hub</title>
   <link rel="stylesheet" href="style.css?v=20260701-ui-renewal-1" />
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    .event-create-form{
+      display:grid;
+      gap:var(--space-3);
+    }
+    .event-create-form .login-label{
+      margin:0;
+    }
+    .event-create-message{
+      min-height:20px;
+      margin:0;
+      color:var(--color-danger);
+      font-weight:800;
+    }
+  </style>
 </head>
 <body>
   <section id="loginView" class="login-view">
@@ -70,6 +85,29 @@
     </main>
   </div>
 
+  <div id="eventCreateModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-event-create></div>
+    <section class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <h2>新規イベント作成</h2>
+          <p>イベント名を入力してください。ログインIDは自動で採番されます。</p>
+        </div>
+        <button class="icon-button" type="button" data-close-event-create>×</button>
+      </div>
+      <div class="event-create-form">
+        <label class="login-label">イベント名
+          <input id="newEventNameInput" type="text" placeholder="例：新宿オフ会 No.3" autocomplete="off" />
+        </label>
+        <p id="eventCreateMessage" class="event-create-message"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-button" type="button" data-close-event-create>キャンセル</button>
+        <button id="confirmCreateEventButton" class="primary-button" type="button">作成する</button>
+      </div>
+    </section>
+  </div>
+
   <div id="batchModal" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close-modal></div>
     <section class="modal-panel">
@@ -105,48 +143,77 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const createButton = document.getElementById('createEventButton');
+      const confirmButton = document.getElementById('confirmCreateEventButton');
+      const eventModal = document.getElementById('eventCreateModal');
+      const eventNameInput = document.getElementById('newEventNameInput');
+      const eventMessage = document.getElementById('eventCreateMessage');
       const loginInput = document.getElementById('loginCodeInput');
       const loginButton = document.getElementById('loginButton');
       const loginError = document.getElementById('loginError');
 
-      if (!createButton) return;
+      function openEventCreateModal() {
+        if (eventMessage) eventMessage.textContent = '';
+        if (eventNameInput) eventNameInput.value = '';
+        eventModal.classList.add('is-open');
+        eventModal.setAttribute('aria-hidden', 'false');
+        setTimeout(function () {
+          if (eventNameInput) eventNameInput.focus();
+        }, 0);
+      }
 
-      createButton.addEventListener('click', async function () {
+      function closeEventCreateModal() {
+        eventModal.classList.remove('is-open');
+        eventModal.setAttribute('aria-hidden', 'true');
+      }
+
+      async function createEventFromModal() {
         if (typeof CONFIG === 'undefined' || !CONFIG.GAS_WEB_APP_URL) {
-          if (loginError) loginError.textContent = 'config.jsにGAS_WEB_APP_URLが設定されていません。';
+          if (eventMessage) eventMessage.textContent = 'config.jsにGAS_WEB_APP_URLが設定されていません。';
           return;
         }
 
-        const eventName = prompt('イベント名を入力してください。');
-        if (!eventName || !eventName.trim()) {
-          if (loginError) loginError.textContent = 'イベント名を入力してください。';
+        const eventName = eventNameInput ? eventNameInput.value.trim() : '';
+        if (!eventName) {
+          if (eventMessage) eventMessage.textContent = 'イベント名を入力してください。';
+          if (eventNameInput) eventNameInput.focus();
           return;
         }
 
-        createButton.disabled = true;
-        createButton.textContent = '作成中...';
+        confirmButton.disabled = true;
+        confirmButton.textContent = '作成中...';
+        if (eventMessage) eventMessage.textContent = '';
         if (loginError) loginError.textContent = '';
 
         try {
           const url = new URL(CONFIG.GAS_WEB_APP_URL);
           url.searchParams.set('action', 'createEventAuto');
-          url.searchParams.set('eventName', eventName.trim());
+          url.searchParams.set('eventName', eventName);
           const response = await fetch(url.toString());
           const data = await response.json();
 
           if (!data.success) throw new Error(data.message || 'イベント作成に失敗しました。');
 
+          closeEventCreateModal();
           alert('イベントを作成しました。\n\nイベント名：' + data.eventName + '\nログインIDは ' + data.code + ' です。');
 
           if (loginInput) loginInput.value = data.code;
           if (loginButton) loginButton.click();
         } catch (error) {
           console.error(error);
-          if (loginError) loginError.textContent = error.message || 'イベント作成に失敗しました。';
+          if (eventMessage) eventMessage.textContent = error.message || 'イベント作成に失敗しました。';
         } finally {
-          createButton.disabled = false;
-          createButton.textContent = '＋ 新規イベント作成';
+          confirmButton.disabled = false;
+          confirmButton.textContent = '作成する';
         }
+      }
+
+      if (createButton) createButton.addEventListener('click', openEventCreateModal);
+      if (confirmButton) confirmButton.addEventListener('click', createEventFromModal);
+      if (eventNameInput) eventNameInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') createEventFromModal();
+      });
+      document.querySelectorAll('[data-close-event-create]').forEach(function (el) {
+        el.addEventListener('click', closeEventCreateModal);
       });
     });
   </script>
