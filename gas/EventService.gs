@@ -23,6 +23,9 @@ function loginEvent_(params) {
 }
 
 function createEventAuto_(params) {
+  const eventName = String(params.eventName || '').trim();
+  if (!eventName) return { success: false, message: 'イベント名を入力してください。' };
+
   const ss = getSpreadsheet_();
   const eventsSheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
   const dashboardSheet = ss.getSheetByName(SHEET_NAMES.DASHBOARD);
@@ -39,7 +42,6 @@ function createEventAuto_(params) {
 
   const nextCode = String(maxCode + 1);
   const eventId = 'OFFMEETING_' + nextCode.padStart(3, '0');
-  const eventName = '新宿オフ会 No.' + nextCode;
   const now = nowIso_();
   const updatedBy = params.updatedBy || params.lineUserId || 'system';
 
