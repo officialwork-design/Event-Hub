@@ -1,11 +1,25 @@
 @media (max-width: 840px) {
+  .app-shell {
+    width: min(100% - 24px, 1120px);
+    padding-top: 16px;
+  }
+
   .app-header {
+    position: sticky;
+    top: 8px;
+    z-index: 20;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 22px;
+    background: rgba(255,255,255,0.94);
+    box-shadow: 0 12px 28px rgba(31,41,55,0.08);
+    backdrop-filter: blur(14px);
   }
 
   .app-header > div:first-child {
@@ -24,7 +38,7 @@
   }
 
   .app-header h1 {
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1;
     white-space: nowrap;
   }
@@ -33,10 +47,12 @@
     min-width: 0;
     flex: 0 0 auto;
     width: auto;
-    max-width: 46%;
-    padding: 10px;
-    border-radius: 18px;
-    box-shadow: 0 10px 24px rgba(31,41,55,0.06);
+    max-width: 52%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .status-card small {
@@ -54,6 +70,7 @@
     margin-top: 8px;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
     flex-direction: row;
   }
 
@@ -69,17 +86,44 @@
     font-size: 11px;
     white-space: nowrap;
   }
+
+  .summary-grid,
+  .nav-grid {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card,
+  .nav-card {
+    padding: 16px;
+  }
 }
 
 @media (max-width: 520px) {
+  .app-shell {
+    width: min(100% - 20px, 1120px);
+    padding-top: 12px;
+  }
+
   .app-header {
     flex-direction: row;
     align-items: center;
     gap: 10px;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: 20px;
+  }
+
+  .app-header .eyebrow {
+    max-width: 170px;
+  }
+
+  .app-header h1 {
+    font-size: 24px;
   }
 
   .status-card {
-    max-width: 50%;
+    max-width: 54%;
   }
 
   .login-user {
@@ -87,7 +131,42 @@
     flex-direction: row;
   }
 
+  .login-user strong {
+    max-width: 76px;
+  }
+
   .mini-button {
     width: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-header {
+    gap: 8px;
+  }
+
+  .app-header .eyebrow {
+    max-width: 140px;
+    font-size: 9px;
+  }
+
+  .app-header h1 {
+    font-size: 22px;
+  }
+
+  .status-badge {
+    min-height: 26px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .login-user strong {
+    display: none;
+  }
+
+  .mini-button {
+    min-height: 28px;
+    padding: 4px 9px;
+    font-size: 10px;
   }
 }
