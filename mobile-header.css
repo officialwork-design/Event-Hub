@@ -1,16 +1,23 @@
 @media (max-width: 840px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .app-shell {
     width: min(100% - 24px, 1120px);
     padding-top: 16px;
+    overflow-x: hidden;
   }
 
   .app-header {
     position: sticky;
     top: 8px;
     z-index: 20;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 20px;
@@ -69,9 +76,9 @@
   .login-user {
     margin-top: 8px;
     gap: 8px;
-    align-items: center;
+    align-items: center !important;
     justify-content: flex-end;
-    flex-direction: row;
+    flex-direction: row !important;
   }
 
   .login-user strong {
@@ -80,7 +87,7 @@
   }
 
   .mini-button {
-    width: auto;
+    width: auto !important;
     min-height: 30px;
     padding: 5px 10px;
     font-size: 11px;
@@ -97,6 +104,49 @@
   .nav-card {
     padding: 16px;
   }
+
+  .panel {
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  .panel-header {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .panel-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px !important;
+    flex-direction: unset !important;
+  }
+
+  .panel-actions button {
+    width: 100% !important;
+    min-width: 0;
+    min-height: 40px;
+    padding: 9px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .category-card,
+  .item-group,
+  .item-row,
+  .item-line {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .item-row,
+  .item-line {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 520px) {
@@ -106,8 +156,8 @@
   }
 
   .app-header {
-    flex-direction: row;
-    align-items: center;
+    flex-direction: row !important;
+    align-items: center !important;
     gap: 10px;
     margin-bottom: 16px;
     padding: 10px 12px;
@@ -127,8 +177,8 @@
   }
 
   .login-user {
-    align-items: center;
-    flex-direction: row;
+    align-items: center !important;
+    flex-direction: row !important;
   }
 
   .login-user strong {
@@ -136,7 +186,21 @@
   }
 
   .mini-button {
-    width: auto;
+    width: auto !important;
+  }
+
+  .panel-header {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .panel-actions,
+  .batch-footer {
+    flex-direction: unset !important;
+  }
+
+  .panel-actions button {
+    width: 100% !important;
   }
 }
 
@@ -168,5 +232,10 @@
     min-height: 28px;
     padding: 4px 9px;
     font-size: 10px;
+  }
+
+  .panel-actions button {
+    font-size: 12px;
+    padding: 8px 6px;
   }
 }
